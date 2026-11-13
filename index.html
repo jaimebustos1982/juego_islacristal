@@ -563,7 +563,7 @@ function buildTemplo(){
 }
 
 /* --- Zona Bloques (taller) --- */
-let plateGroup, targetCanvas, targetTex;
+let plateGroup, targetCanvas, targetTex, maqueta, planLabel;
 function buildTaller(){
   const Z=ZONES.bloques;
   mesh(new THREE.BoxGeometry(9,4.4,0.4), M(0xf3efe6), 0,2.2,41.2);
@@ -572,7 +572,13 @@ function buildTaller(){
   targetTex=new THREE.CanvasTexture(targetCanvas);
   const pl=mesh(new THREE.PlaneGeometry(3.2,3.2), new THREE.MeshBasicMaterial({map:targetTex}), 0,2.3,40.98); pl.rotation.y=Math.PI;
   for(let x=-4;x<=4;x+=1) obstacles.push({x,z:41.2,r:0.45});
-  const lb=makeLabel('COPIA EL DIBUJO',{bg:'#ffffff',w:5}); lb.position.set(0,5.6,41); scene.add(lb);
+  planLabel=makeLabel('EL PLANO',{bg:'#ffffff',w:4}); planLabel.position.set(0,5.6,41); scene.add(planLabel);
+  // pedestal de la maqueta
+  mesh(new THREE.CylinderGeometry(1.45,1.6,1.1,20), M(0xb9b2a3), -5.6,0.55,37.5);
+  const ring=mesh(new THREE.TorusGeometry(1.45,0.06,8,40), new THREE.MeshBasicMaterial({color:0x7fe7ff}), -5.6,1.12,37.5); ring.rotation.x=Math.PI/2;
+  obstacles.push({x:-5.6,z:37.5,r:1.6});
+  maqueta=new THREE.Group(); maqueta.position.set(-5.6,1.12,37.5); scene.add(maqueta);
+  const ml=makeLabel('MAQUETA',{bg:'#7fe7ff',w:3}); ml.position.set(-5.6,4.3,37.5); scene.add(ml);
   plateGroup=new THREE.Group(); scene.add(plateGroup);
   mesh(new THREE.CylinderGeometry(0.45,0.55,1,10), M(0xb9b2a3), 3.6,0.5,35);
   mesh(new THREE.CylinderGeometry(0.4,0.4,0.25,16), M(0xe63946), 3.6,1.1,35);
@@ -630,7 +636,7 @@ const PICKS = [
 const SHOP = [
   {id:'casco_minero',n:'Casco de minero',d:'Con linterna, para tu cabeza.',cost:{cuarzo:12}},
   {id:'gemi',n:'Mascota Gemi',d:'Un cristal con ojos que te sigue.',cost:{cuarzo:8,esmeralda:2}},
-  {id:'bloques',n:'Bloques brillantes',d:'3 colores nuevos que brillan, para construir.',cost:{esmeralda:4,zafiro:2}},
+  {id:'bloques',n:'Bloques brillantes',d:'3 colores que brillan. Aparecen en la barra de construir (tecla B).',cost:{esmeralda:4,zafiro:2}},
   {id:'corona_cristal',n:'Corona de cristal',d:'Brilla sobre tu cabeza.',cost:{cuarzo:10,zafiro:4}},
   {id:'aura',n:'Estela brillante',d:'Dejas chispas al correr.',cost:{ambar:8,topacio:3}},
   {id:'pingui',n:'Mascota Pingüi',d:'Un pingüino que te acompaña.',cost:{hielo:10,aguamarina:3}},
@@ -853,7 +859,7 @@ function openShop(tab){
   if(tab==='tienda'){
     body += `<div class="shop-list">` + SHOP.map(it=>{ const owned=!!state.owned[it.id];
       return `<div class="shop-item ${owned?'owned':''}"><div class="si-head"><h3>${esc(it.n)}</h3></div><p>${esc(it.d)}</p>
-      ${owned?'<span class="tag">Ya es tuyo · búscalo con C</span>':`<div class="costs">${costHtml(it.cost)}</div>${canPay(it.cost)?`<button class="btn small" type="button" data-buy="${it.id}">Cambiar</button>`:`<p class="miss">${esc(missingText(it.cost))}</p>`}`}</div>`; }).join('') + `</div>`;
+      ${owned?`<span class="tag">${it.id==='bloques'?'Ya son tuyos · presiona B':'Ya es tuyo · búscalo con C'}</span>`:`<div class="costs">${costHtml(it.cost)}</div>${canPay(it.cost)?`<button class="btn small" type="button" data-buy="${it.id}">Cambiar</button>`:`<p class="miss">${esc(missingText(it.cost))}</p>`}`}</div>`; }).join('') + `</div>`;
   }
   if(tab==='vender'){
     const have = CRYS_IDS.filter(id=>(state.inv[id]||0)>0);
@@ -874,7 +880,7 @@ function openShop(tab){
   document.querySelectorAll('#mBody [data-pick]').forEach(b=>b.onclick=()=>{ const lv=+b.dataset.pick, pk=PICKS[lv]; if(!canPay(pk.cost)) return;
     pay(pk.cost); state.pick=lv; save(); updateBagChip(); rebuildAvatar(); sfx.level(); speak('Ahora tienes el '+pk.n); openShop('picos'); });
   document.querySelectorAll('#mBody [data-buy]').forEach(b=>b.onclick=()=>{ const it=SHOP.find(s=>s.id===b.dataset.buy); if(!canPay(it.cost)) return;
-    pay(it.cost); state.owned[it.id]=true; save(); updateBagChip(); renderHotbar(); sfx.level(); speak('Conseguiste '+it.n+'. Presiona C para usarlo.'); openShop('tienda'); });
+    pay(it.cost); state.owned[it.id]=true; save(); updateBagChip(); renderHotbar(); sfx.level(); speak(it.id==='bloques' ? 'Conseguiste los bloques brillantes. Presiona B y búscalos al final de la barra.' : 'Conseguiste '+it.n+'. Presiona C para usarlo.'); openShop('tienda'); });
   document.querySelectorAll('#mBody [data-sell]').forEach(b=>b.onclick=()=>{ const id=b.dataset.sell, q=Math.min(+b.dataset.q, state.inv[id]||0); if(q<=0) return;
     state.inv[id]-=q; state.coins+=q*TIERS[CRYSTALS[id].t].v; save(); updateBagChip(); sfx.collect(); openShop('vender'); });
   document.querySelectorAll('#mBody [data-prize]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.prize, p=state.prizes[i]; if(state.coins<p.c) return;
@@ -1467,35 +1473,86 @@ let buildTarget = null;
 function plateCells(n){ const xs=[], zs=[]; const s=-Math.floor(n/2); for(let i=0;i<n;i++){ xs.push(s+i); zs.push(36+i); } return {xs,zs}; }
 function genBloques(){
   if(buildTarget){ const {xs,zs}=plateCells(buildTarget.n); xs.forEach(x=>zs.forEach(z=>{ for(let y=0;y<12;y++) removeBlock(x,y,z,false); })); persistBlocks(); }
-  const L=state.level; const n = L===1?2:(L<=3?3:4); const k = L<=2?2:Math.min(3+(L>=5?1:0), unlockedColors());
+  const L=state.level;
+  const n = L===1?2:(L<=4?3:4), maxH = L<=2?2:3, rotated = L>=4, perCube = L>=3;
+  const k = L<=2?2:Math.min(L>=5?4:3, unlockedColors());
   const palette = shuffle([...Array(unlockedColors()).keys()]).slice(0,k);
-  let grid; do{ grid=[]; for(let r=0;r<n;r++){ const row=[]; for(let c=0;c<n;c++) row.push(pick(palette)); grid.push(row);} } while(new Set(grid.flat()).size<2);
-  buildTarget={n,grid};
-  // dibujo de la pared
+  const cap = n===2?6:(n===3?14:18);
+  const {xs,zs}=plateCells(n);
+  let cubes, total, tries=0;
+  do{
+    cubes=new Map(); total=0; let tall=0;
+    xs.forEach(x=>zs.forEach(z=>{
+      const h = R()<(L===1?0:0.15) ? 0 : ri(1,maxH); if(h>=2) tall++;
+      const colCol = pick(palette);
+      for(let y=0;y<h;y++){ cubes.set(bkey(x,y,z), perCube?pick(palette):colCol); total++; }
+    }));
+    tries++;
+  } while(tries<80 && (total>cap || total<n*n*0.7 || new Set(cubes.values()).size<2 || ![...cubes.keys()].some(k=>k.split(',')[1]==='1')));
+  buildTarget={n, cubes, total, rotated, showPlan:!rotated};
+  // plano en la pared (vista desde arriba, mirando desde la plaza)
   const c=targetCanvas.getContext('2d'); c.fillStyle='#ffffff'; c.fillRect(0,0,512,512);
-  const pad=36, cell=(512-pad*2)/n;
-  for(let r=0;r<n;r++) for(let q=0;q<n;q++){ c.fillStyle=BLOCK_COLORS[grid[r][q]].css; c.fillRect(pad+q*cell,pad+r*cell,cell,cell); }
-  c.lineWidth=10; c.strokeStyle='#1b2445'; for(let i=0;i<=n;i++){ c.beginPath(); c.moveTo(pad+i*cell,pad); c.lineTo(pad+i*cell,512-pad); c.stroke(); c.beginPath(); c.moveTo(pad,pad+i*cell); c.lineTo(512-pad,pad+i*cell); c.stroke(); }
+  if(buildTarget.showPlan){
+    const pad=36, cell=(512-pad*2)/n;
+    for(let r=0;r<n;r++) for(let q=0;q<n;q++){
+      const x=xs[n-1-q], z=zs[n-1-r]; let h=0; while(cubes.has(bkey(x,h,z))) h++;
+      c.fillStyle = h ? BLOCK_COLORS[cubes.get(bkey(x,h-1,z))].css : '#eef1f6'; c.fillRect(pad+q*cell,pad+r*cell,cell,cell);
+      const cx=pad+q*cell+cell/2, cy=pad+r*cell+cell/2;
+      c.beginPath(); c.arc(cx,cy,cell*0.24,0,7); c.fillStyle='#ffffff'; c.fill(); c.lineWidth=6; c.strokeStyle='#1b2445'; c.stroke();
+      c.fillStyle='#1b2445'; c.font=`800 ${Math.round(cell*0.34)}px "Baloo 2","Trebuchet MS",sans-serif`; c.textAlign='center'; c.textBaseline='middle'; c.fillText(String(h),cx,cy+3);
+    }
+    c.lineWidth=10; c.strokeStyle='#1b2445'; for(let i=0;i<=n;i++){ c.beginPath(); c.moveTo(pad+i*cell,pad); c.lineTo(pad+i*cell,512-pad); c.stroke(); c.beginPath(); c.moveTo(pad,pad+i*cell); c.lineTo(512-pad,pad+i*cell); c.stroke(); }
+    setLabel(planLabel,'EL PLANO');
+  } else {
+    c.fillStyle='#1b2445'; c.textAlign='center'; c.textBaseline='middle';
+    c.font='800 200px "Baloo 2","Trebuchet MS",sans-serif'; c.fillText('?',256,220);
+    c.font='800 46px "Baloo 2","Trebuchet MS",sans-serif'; c.fillText('Sin plano.',256,370); c.fillText('Mira la maqueta.',256,425);
+    setLabel(planLabel,'SIN PLANO');
+  }
   targetTex.needsUpdate=true;
+  // maqueta 3D
+  while(maqueta.children.length) maqueta.remove(maqueta.children[0]);
+  const s3=2.1/n, cxm=xs[0]+(n-1)/2, czm=zs[0]+(n-1)/2;
+  const inner=new THREE.Group(); maqueta.add(inner); inner.rotation.y = rotated ? Math.PI/2 : 0;
+  const g1=new THREE.BoxGeometry(s3*0.98,s3*0.98,s3*0.98), eg=new THREE.EdgesGeometry(g1), em=new THREE.LineBasicMaterial({color:0x1b2445});
+  cubes.forEach((col,key)=>{ const [x,y,z]=key.split(',').map(Number); const bc=BLOCK_COLORS[col];
+    const m=mesh(g1, bc.glow?M(bc.hex,{emissive:bc.hex,emissiveIntensity:0.55}):M(bc.hex), (x-cxm)*s3, (y+0.5)*s3, (z-czm)*s3, inner); m.add(new THREE.LineSegments(eg,em)); });
   // placa en el piso
   while(plateGroup.children.length) plateGroup.remove(plateGroup.children[0]);
-  const {xs,zs}=plateCells(n);
   xs.forEach(x=>zs.forEach(z=>mesh(new THREE.BoxGeometry(0.92,0.04,0.92), M(0xbfc6d4), x,0.03,z, plateGroup)));
   mesh(new THREE.BoxGeometry(n+0.4,0.02,n+0.4), M(0x1b2445), xs[0]+(n-1)/2,0.015,zs[0]+(n-1)/2, plateGroup);
 }
 function clearPlate(){ const {n}=buildTarget; const {xs,zs}=plateCells(n); xs.forEach(x=>zs.forEach(z=>{ for(let y=0;y<12;y++) removeBlock(x,y,z,false); })); persistBlocks(); sfx.place(); }
-// columna c del dibujo (izquierda→derecha, visto desde la plaza) = x de mayor a menor; fila r (arriba→abajo) = z más lejano → más cercano
 function checkBuild(){
   if(state.done.bloques){ info('Taller de Bloques','Ya tienes el cristal de esta zona. Puedes seguir construyendo donde quieras.'); return; }
-  const {n,grid}=buildTarget; const {xs,zs}=plateCells(n); let wrong=0, filled=0;
-  for(let r=0;r<n;r++) for(let q=0;q<n;q++){
-    const x=xs[n-1-q], z=zs[n-1-r]; const b=blocks.get(bkey(x,0,z));
-    if(b) filled++; if(!b || b.c!==grid[r][q]) wrong++;
+  const {n,cubes,total,rotated}=buildTarget; const {xs,zs}=plateCells(n);
+  // se acepta la figura en cualquiera de los 4 giros sobre la placa
+  let wrong=1e9, filled=0;
+  xs.forEach(x=>zs.forEach(z=>{ for(let y=0;y<12;y++) if(blocks.has(bkey(x,y,z))) filled++; }));
+  for(let rot=0;rot<4;rot++){
+    let w=0;
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+      let a=i, b=j; for(let r=0;r<rot;r++){ const t=a; a=b; b=n-1-t; }
+      for(let y=0;y<12;y++){ const want=cubes.get(bkey(xs[a],y,zs[b])), bl=blocks.get(bkey(xs[i],y,zs[j]));
+        if((want===undefined)!==(!bl) || (bl && want!==undefined && bl.c!==want)) w++; }
+    }
+    wrong=Math.min(wrong,w);
   }
-  if(filled===0){ openModal('Taller de Bloques', `<ol class="q" style="padding-left:1.2em;margin:0"><li>Mira el dibujo de la pared.</li><li>Presiona B y elige el color con los números.</li><li>Pon los bloques sobre los cuadros grises del piso.</li><li>Si te equivocas: M mueve un bloque y X lo borra.</li><li>Vuelve aquí y presiona E.</li></ol>`, [{label:'Entendido',fn:closeModal}], 'Mira el dibujo de la pared. Presiona B y elige el color con los números. Pon los bloques sobre los cuadros grises del piso. Vuelve aquí y presiona E.'); return; }
-  if(wrong===0){ state.stats.bloques.ok++; winCrystal('bloques'); return; }
+  const steps = ['Mira la maqueta desde varios lados. Puedes construirla mirando hacia donde quieras.', rotated?'No hay plano: cuenta tú los bloques de cada torre.':'El plano dice cuántos bloques van en cada cuadro.', 'Presiona B, elige el color y pon los bloques en la placa gris. Sube torres poniendo bloques encima.', 'Si te equivocas: M mueve un bloque y X lo borra.', 'Vuelve aquí y presiona E.'];
+  if(filled===0){ openModal('Taller de Bloques', `<ol class="q" style="padding-left:1.2em;margin:0">${steps.map(t=>'<li>'+esc(t)+'</li>').join('')}</ol>`, [{label:'Entendido',fn:closeModal}], steps.join(' ')); return; }
+  if(wrong===0){
+    state.stats.bloques.ok++; save();
+    const opts=shuffle([total, total+1, Math.max(1,total-1)===total?total+2:total-1, total+2].filter((v,i,a)=>a.indexOf(v)===i).slice(0,3));
+    openModal('¡Igual a la maqueta!', `<p class="q">Antes de recibir el cristal: ¿cuántos bloques usaste?</p><div class="opts">${opts.map(v=>`<button class="opt" type="button" data-v="${v}"><span class="big-num" style="font-size:2.4rem">${v}</span></button>`).join('')}</div><div class="feedback" id="fb"></div>`, [], '¿Cuántos bloques usaste?');
+    let first=true;
+    document.querySelectorAll('#mBody .opt').forEach(b=>b.onclick=()=>{
+      if(+b.dataset.v===total){ b.classList.add('ok'); sfx.ok(); if(first){ state.coins+=3; updateBagChip(); } save(); $('#fb').textContent = first ? '¡Exacto! Ganaste 3 monedas.' : '¡Eso es!'; document.querySelectorAll('#mBody .opt').forEach(x=>x.disabled=true); setTimeout(()=>{ closeModal(); winCrystal('bloques'); }, 900); }
+      else { first=false; b.classList.add('bad'); b.disabled=true; sfx.err(); $('#fb').textContent='Cuenta otra vez, torre por torre.'; }
+    });
+    return;
+  }
   state.stats.bloques.err++; save(); sfx.err();
-  openModal('Casi, casi', `<p class="q">Hay <b>${wrong}</b> ${wrong===1?'cuadro que no coincide':'cuadros que no coinciden'} con el dibujo.</p><p>Párate frente a la pared y compara fila por fila.</p>`, [{label:'Limpiar la placa',cls:'ghost',fn:()=>{ clearPlate(); closeModal(); }},{label:'Arreglarlo',fn:closeModal}], 'Casi. Hay '+wrong+' cuadros que no coinciden. Compara fila por fila.');
+  openModal('Casi, casi', `<p class="q">Hay <b>${wrong}</b> ${wrong===1?'bloque que no coincide':'bloques que no coinciden'} con la maqueta.</p><p>Revisa torre por torre: la altura y el color de cada bloque.</p>`, [{label:'Limpiar la placa',cls:'ghost',fn:()=>{ clearPlate(); closeModal(); }},{label:'Arreglarlo',fn:closeModal}], 'Casi. Hay '+wrong+' bloques que no coinciden. Revisa torre por torre.');
 }
 
 /* ---------- RETO: Robot Sabio (lectura y semejanzas) ---------- */
@@ -1632,7 +1689,7 @@ function setupLevel(){ genNumeros(); genBloques(); }
 const zoneIntro = {
   numeros:['Zona de Números',['Busca las gemas con números.','Camina sobre ellas para guardarlas.','Lleva la suma exacta al altar y presiona E.','Si te pasas, presiona R para soltarlas.']],
   patrones:['Templo de Patrones',['Entra al templo.','Acércate a la tabla de piedra y presiona E.','Descubre qué figura falta.']],
-  bloques:['Taller de Bloques',['Mira el dibujo de la pared.','Presiona B y elige el color con 1, 2, 3.','Pon bloques en los cuadros grises.','Presiona E en el botón rojo.']],
+  bloques:['Taller de Bloques',['Mira la maqueta y el plano de la pared.','Presiona B y elige el color con 1, 2, 3.','Construye la misma figura en los cuadros grises.','Presiona E en el botón rojo.']],
   robot:['Robot Sabio',['Acércate al robot.','Presiona E para hablar.','Lee cada pregunta y elige la respuesta.']]
 };
 let saveAcc=0, breakAcc=0;
