@@ -109,6 +109,30 @@ kbd{font-family:var(--display);font-weight:800;color:var(--ink);background:var(-
 .prz{display:grid;grid-template-columns:1fr 90px;gap:6px}
 .prz input{font:inherit;border:3px solid var(--ink);border-radius:10px;padding:.2em .4em;background:var(--mist);color:var(--ink);min-width:0}
 .pend{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:2px solid var(--mist);padding:6px 0}
+.etile{display:inline-grid;place-items:center;border:3px solid var(--ink);border-radius:10px;position:relative;font-family:var(--display);font-weight:800;line-height:1;flex:none}
+.etile b{font-size:1.1em}
+.etile small{position:absolute;top:2px;left:4px;font-size:.62em;font-weight:700}
+.cost .etile{font-size:.75rem;border-width:2px;border-radius:6px}
+.ficha{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.ficha .etile{font-size:2.6rem}
+.ficha-t{flex:1;min-width:200px;display:grid;gap:6px}
+.fdl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}
+.fdl dt{color:var(--muted);font-weight:700}
+.fdl dd{margin:0;font-family:var(--display);font-weight:800;font-size:1.15rem}
+.fdl small{font-family:var(--body);font-weight:400;color:var(--muted);font-size:.85rem}
+.pt-wrap{overflow-x:auto}
+.pt{display:grid;grid-template-columns:repeat(18,minmax(32px,1fr));grid-template-rows:repeat(6,42px);gap:3px;min-width:600px}
+.pt-empty{background:var(--mist);border-radius:5px}
+.pt-cell{position:relative;border:2px solid var(--ink);border-radius:6px;background:#e3e7ef;color:var(--ink);font-family:var(--display);font-weight:800;font-size:1rem;padding:0;line-height:1}
+.pt-cell small{position:absolute;top:1px;left:3px;font-size:.55rem}
+.pt-cell em{position:absolute;bottom:0;right:3px;font-size:.6rem;font-style:normal;font-family:var(--body);font-weight:700}
+.pt-cell.on{box-shadow:0 2px 0 var(--ink)}
+.fml{font-family:var(--display)}
+.fml sub{font-size:.7em}
+.molrow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.molsvg{background:var(--mist);border-radius:16px;padding:4px;flex:none}
+.molrow > div:last-child{flex:1;min-width:200px}
+.sum{font-family:var(--display);font-weight:800;font-size:2rem;margin:0;font-variant-numeric:tabular-nums}
 .tag{font-family:var(--display);font-weight:800;font-size:.85rem;background:var(--ink);color:#fff;border-radius:8px;padding:1px 8px;width:max-content}
 #toasts{position:absolute;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;max-width:min(440px,calc(100vw - 28px))}
 .toast{background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:0 5px 0 var(--ink);padding:12px 16px;animation:pop .25s ease-out}
@@ -252,9 +276,9 @@ const ZONE_IDS = ['numeros','patrones','bloques','robot'];
 function defaultState(){
   return { name:'', level:1, stars:0,
     done:{numeros:false,patrones:false,bloques:false,robot:false},
-    stats:{numeros:{ok:0,err:0},patrones:{ok:0,err:0},bloques:{ok:0,err:0},robot:{ok:0,err:0}},
+    stats:{numeros:{ok:0,err:0},patrones:{ok:0,err:0},bloques:{ok:0,err:0},robot:{ok:0,err:0},lab:{ok:0,err:0}},
     settings:{limit:60, breakEvery:15, sound:true},
-    today:{date:todayStr(), secs:0, extra:0}, totalSecs:0, seenIntro:{}, robotSeen:[], blocks:[], world:'isla', worlds:null, inv:{}, coins:0, pick:0, owned:{}, redeems:[],
+    today:{date:todayStr(), secs:0, extra:0}, totalSecs:0, seenIntro:{}, robotSeen:[], blocks:[], world:'isla', worlds:null, atoms:{}, found:{}, mols:{}, lastMol:null, inv:{}, coins:0, pick:0, owned:{}, redeems:[],
     prizes:[{n:'Elegir el postre',c:30},{n:'Ir al parque con papá',c:60},{n:'Escoger la película del fin de semana',c:100}] };
 }
 let state = defaultState();
@@ -271,6 +295,7 @@ const WORLDS = {
 };
 const WORLD_IDS = Object.keys(WORLDS);
 const emptyDone = () => ({numeros:false,patrones:false,bloques:false,robot:false});
+state.atoms = state.atoms||{}; state.found = state.found||{}; state.mols = state.mols||{};
 state.inv = state.inv||{}; state.owned = state.owned||{}; state.redeems = state.redeems||[];
 if(!state.worlds){ state.worlds = { isla:{ done: state.done || emptyDone(), blocks: state.blocks || [] } }; }
 const worldOpen = id => state.stars >= WORLDS[id].need;
@@ -278,7 +303,7 @@ if(!WORLDS[state.world] || !worldOpen(state.world)) state.world='isla';
 function W(){ if(!state.worlds[state.world]) state.worlds[state.world]={done:emptyDone(), blocks:[]}; return state.worlds[state.world]; }
 state.done = W().done; state.blocks = W().blocks;
 const T = WORLDS[state.world];
-function hasProgress(){ return state.level>1 || state.stars>0 || !!state.avatarDone || state.coins>0 || Object.values(state.inv).some(n=>n>0) || Object.values(state.worlds).some(w=>(w.blocks&&w.blocks.length) || Object.values(w.done||{}).some(Boolean)); }
+function hasProgress(){ return state.level>1 || state.stars>0 || !!state.avatarDone || state.coins>0 || Object.values(state.inv).some(n=>n>0) || Object.keys(state.found).length>0 || Object.values(state.worlds).some(w=>(w.blocks&&w.blocks.length) || Object.values(w.done||{}).some(Boolean)); }
 function resetProgress(){
   const keep = {name:state.name, settings:state.settings, today:state.today, totalSecs:state.totalSecs, stats:state.stats, prizes:state.prizes, redeems:state.redeems};
   state = Object.assign(defaultState(), keep); save();
@@ -379,7 +404,7 @@ function buildWorld(){
   const nearZone=(x,z,d)=>Object.values(ZONES).some(Z=>Math.hypot(x-Z.x,z-Z.z)<d);
   for(let i=0;i<220 && obstacles.length<70;i++){
     const a=wr()*Math.PI*2, r=13+wr()*42, x=Math.cos(a)*r, z=Math.sin(a)*r;
-    if(nearZone(x,z,15) || Math.hypot(x-MINE_C.x,z-MINE_C.z)<11.5 || Math.hypot(x-8,z-8)<4) continue;
+    if(nearZone(x,z,15) || Math.hypot(x-MINE_C.x,z-MINE_C.z)<11.5 || Math.hypot(x-8,z-8)<4 || Math.hypot(x-14,z-12.5)<9.5) continue;
     if((Math.abs(x)<4.5 && Math.abs(z)<32) || (Math.abs(z)<4.5 && Math.abs(x)<32)) continue;
     if(obstacles.some(o=>Math.hypot(o.x-x,o.z-z)<o.r+3.2)) continue;
     const s=0.8+wr()*0.7;
@@ -397,7 +422,7 @@ function buildWorld(){
     animated.push(t=>{ g.position.x += 0.01; if(g.position.x>120) g.position.x=-120; });
   }
 
-  buildTower(); buildNumeros(); buildTemplo(); buildTaller(); buildRobot(); buildPortal(); buildShop();
+  buildTower(); buildNumeros(); buildTemplo(); buildTaller(); buildRobot(); buildPortal(); buildShop(); buildLab(mulberry32(77));
 
   // letreros en la plaza
   const signs=[['NÚMEROS',2.6,-10.5,'#f4a300'],['PATRONES',10.5,-2.6,'#8a5cf6'],['BLOQUES',-2.6,10.5,'#ef5d60'],['ROBOT',-10.5,2.6,'#1fb5a6']];
@@ -675,10 +700,14 @@ function makeNode(id, x, z, tier, wr){
   return nd;
 }
 function setDepleted(nd, on){
+  if(nd.elem){ nd.depleted=on; nd.hits=0; nd.sg.visible=!on; nd.sg.scale.setScalar(1); return; }
   nd.depleted = on; nd.hits = 0; nd.sg.visible = !on; nd.sg.scale.setScalar(1);
   nd.rock.scale.set(on?0.8:1.15, on?0.45:0.8, on?0.75:1.05);
 }
 function nodeLabel(nd){
+  if(nd.elem){ const E=ELEMENTS[nd.elem], nm=state.found[nd.elem]?E.n.toLowerCase():'elemento misterioso';
+    if(nd.depleted){ const s=Math.ceil((ELEM_RESPAWN-(Date.now()-(W().mined[nd.id]||0)))/1000); return `Fuente vacía: vuelve en ${Math.max(1,s)} s`; }
+    return E.gas ? `Capturar ${nd.elem} (${nm})` : `Picar ${nd.elem} (${nm}) · ${3-nd.hits} ${3-nd.hits===1?'golpe':'golpes'}`; }
   const C = CRYSTALS[nd.type];
   if(nd.depleted){ const s = Math.ceil((RESPAWN_MS - (Date.now() - (W().mined[nd.id]||0)))/1000); return `Veta vacía: vuelve en ${Math.max(1,s)} s`; }
   if(state.pick < TIERS[nd.tier].pick) return `${C.n}: necesitas ${PICKS[TIERS[nd.tier].pick].n.toLowerCase()}`;
@@ -738,6 +767,7 @@ function updateFx(dt){
     if(f.life<=0){ scene.remove(f.sp); floaters.splice(i,1); } }
 }
 function mineHit(nd, fromHold){
+  if(nd.elem) return elemHit(nd, fromHold);
   if(nd.depleted){ if(!fromHold) toast('Veta vacía',['Los cristales vuelven a crecer. Busca otra veta.'],5000); return; }
   const need = TIERS[nd.tier].pick;
   if(state.pick < need){ if(!fromHold){ sfx.err(); toast('Esta veta es muy dura',[`Necesitas el ${PICKS[need].n.toLowerCase()}.`,'Cámbialo con el Joyero de la plaza.'],7000); } return; }
@@ -761,7 +791,7 @@ function updateMines(dt){
   mineCd = Math.max(0, mineCd-dt); swingT = Math.max(0, swingT-dt); pickShowT = Math.max(0, pickShowT-dt);
   const now = Date.now();
   for(const nd of nodes){
-    if(nd.depleted && now - (W().mined[nd.id]||0) >= RESPAWN_MS){ setDepleted(nd,false); delete W().mined[nd.id]; }
+    if(nd.depleted && now - (W().mined[nd.id]||0) >= (nd.elem?ELEM_RESPAWN:RESPAWN_MS)){ setDepleted(nd,false); delete W().mined[nd.id]; }
     if(nd.shake>0){ nd.shake-=dt; nd.g.position.x = nd.x + Math.sin(nd.shake*90)*0.06; } else nd.g.position.x = nd.x;
   }
   if(nearest && nearest.node){
@@ -815,7 +845,7 @@ function openBag(){
     const open = worldOpen(w);
     return `<div class="bag-world"><h3>${esc(WORLDS[w].name)}</h3><div class="bag-row">${worldCrys(w).map(id=>{ const C=CRYSTALS[id], n=state.inv[id]||0;
       return `<div class="bag-item ${n?'':'zero'}">${gemSVG(open?C.css:'#cfd5e2',34)}<span>${open?esc(C.n):'???'}</span><b>${n}</b></div>`; }).join('')}</div></div>`; }).join('');
-  openModal('Tu bolsa', `<div class="bag-top"><span>${coinSVG(30)} <b>${state.coins}</b> monedas</span><span class="tag">${esc(PICKS[state.pick].n)}</span></div>${groups}<p class="note">Cristal común = 1 moneda · poco común = 3 · raro = 10. Véndelos o cámbialos con el Joyero de la plaza.</p>`, [{label:'Cerrar',fn:closeModal}], 'Tu bolsa. Tienes '+state.coins+' monedas.');
+  openModal('Tu bolsa', `<div class="bag-top"><span>${coinSVG(30)} <b>${state.coins}</b> monedas</span><span class="tag">${esc(PICKS[state.pick].n)}</span></div>${groups}${EL_IDS.some(s=>state.found[s])?`<div class="bag-world"><h3>Átomos</h3><div class="costs">${EL_IDS.filter(s=>state.found[s]).map(s=>`<span class="cost ok">${elemTile(s,24)} <b>${state.atoms[s]||0}</b></span>`).join('')}</div></div>`:''}<p class="note">Cristal común = 1 moneda · poco común = 3 · raro = 10. Véndelos o cámbialos con el Joyero de la plaza.</p>`, [{label:'Cerrar',fn:closeModal}], 'Tu bolsa. Tienes '+state.coins+' monedas.');
 }
 
 /* Joyero */
@@ -887,6 +917,232 @@ function openShop(tab){
     if(shopArm!=='p'+i){ shopArm='p'+i; openShop('premios'); return; }
     shopArm=null; state.coins-=p.c; state.redeems.push({n:p.n, c:p.c, at:new Date().toISOString(), done:false}); save(); updateBagChip(); sfx.crystal();
     openModal('¡Premio canjeado!', `<p class="q">Canjeaste: <b>${esc(p.n)}</b>.</p><p>Avísale a papá o a mamá. Ellos lo verán en el panel de padres.</p>`, [{label:'Seguir',fn:closeModal}], 'Canjeaste '+p.n+'. Avísale a papá o a mamá.'); });
+}
+
+/* ---------- laboratorio: elementos y moléculas ---------- */
+// masas: pesos atómicos estándar IUPAC (CIAAW), redondeados al entero más cercano para el juego
+const ELEMENTS = {
+  H:{n:'Hidrógeno',z:1,m:1,ex:'1,008',cat:'gas',css:'#ffffff',r:0.26,f:'Es el elemento más liviano. Las estrellas están hechas casi todo de hidrógeno.',w:'isla',gas:1},
+  He:{n:'Helio',z:2,m:4,ex:'4,003',cat:'gas',css:'#7fe7ff',r:0.3,f:'Hace que los globos floten.',w:'luna',gas:1},
+  C:{n:'Carbono',z:6,m:12,ex:'12,011',cat:'nometal',css:'#3a3f4a',r:0.4,f:'Está en la mina de tu lápiz y también en los diamantes.',w:'isla'},
+  N:{n:'Nitrógeno',z:7,m:14,ex:'14,007',cat:'gas',css:'#2a6fdb',r:0.38,f:'Casi todo el aire que respiras es nitrógeno.',w:'nieve',gas:1},
+  O:{n:'Oxígeno',z:8,m:16,ex:'15,999',cat:'gas',css:'#e63946',r:0.38,f:'Lo necesitas para respirar.',w:'isla',gas:1},
+  Na:{n:'Sodio',z:11,m:23,ex:'22,990',cat:'metal',css:'#8a5cf6',r:0.48,f:'Junto con el cloro forma la sal de cocina.',w:'desierto'},
+  Mg:{n:'Magnesio',z:12,m:24,ex:'24,305',cat:'metal',css:'#2bb673',r:0.46,f:'Cuando arde da una luz blanca muy brillante.',w:'nieve'},
+  Al:{n:'Aluminio',z:13,m:27,ex:'26,982',cat:'metal',css:'#c7cdda',r:0.46,f:'Muchas latas de gaseosa son de aluminio.',w:'luna'},
+  S:{n:'Azufre',z:16,m:32,ex:'32,06',cat:'nometal',css:'#ffd23f',r:0.44,f:'Es amarillo. Algunos gases con azufre huelen a huevo podrido.',w:'desierto'},
+  Cl:{n:'Cloro',z:17,m:35,ex:'35,45',cat:'gas',css:'#58c24a',r:0.44,f:'Se usa para limpiar el agua de las piscinas.',w:'desierto',gas:1},
+  Ca:{n:'Calcio',z:20,m:40,ex:'40,078',cat:'metal',css:'#d9cfa8',r:0.5,f:'Hace fuertes tus huesos y tus dientes.',w:'isla'},
+  Fe:{n:'Hierro',z:26,m:56,ex:'55,845',cat:'metal',css:'#c05a2b',r:0.46,f:'Tu sangre tiene un poquito de hierro.',w:'desierto'},
+  Cu:{n:'Cobre',z:29,m:64,ex:'63,546',cat:'metal',css:'#d07a3a',r:0.46,f:'Los cables de la luz suelen ser de cobre.',w:'nieve'},
+  Ag:{n:'Plata',z:47,m:108,ex:'107,87',cat:'metal',css:'#e6e8ee',r:0.48,f:'Es el metal que mejor conduce la electricidad.',w:'luna'},
+  Au:{n:'Oro',z:79,m:197,ex:'196,97',cat:'metal',css:'#ffc93c',r:0.48,f:'No se oxida: por eso sigue brillando aunque pasen muchos años.',w:'desierto'}
+};
+const EL_IDS = Object.keys(ELEMENTS);
+const CAT_N = {metal:'Metal', nometal:'No metal', gas:'Gas'};
+const PT_POS = {H:[1,1],He:[1,18],C:[2,14],N:[2,15],O:[2,16],Na:[3,1],Mg:[3,2],Al:[3,13],S:[3,16],Cl:[3,17],Ca:[4,2],Fe:[4,8],Cu:[4,11],Ag:[5,11],Au:[6,11]};
+const ptValid = (p,g) => p===1 ? (g===1||g===18) : (p<=3 ? (g<=2||g>=13) : true);
+// moléculas: átomos en orden (el primero es el centro; los enlaces salen de él)
+const MOLS = {
+  H2:{n:'Hidrógeno gas',w:'isla',atoms:[['H',-0.36,0,0],['H',0.36,0,0]],f:'Algunos cohetes usan hidrógeno como combustible.'},
+  O2:{n:'Oxígeno del aire',w:'isla',atoms:[['O',-0.6,0,0],['O',0.6,0,0]],f:'El oxígeno que respiras viene en parejas: O₂.'},
+  H2O:{n:'Agua',w:'isla',atoms:[['O',0,0.15,0],['H',-0.75,-0.45,0],['H',0.75,-0.45,0]],f:'Cada gota de agua tiene muchísimas de estas moléculas.'},
+  CH4:{n:'Metano',w:'isla',atoms:[['C',0,0,0],['H',0.62,0.62,0.62],['H',-0.62,-0.62,0.62],['H',-0.62,0.62,-0.62],['H',0.62,-0.62,-0.62]],f:'Es un gas que sale de los eructos de las vacas.'},
+  CO2:{n:'Dióxido de carbono',w:'isla',atoms:[['C',0,0,0],['O',-1.1,0,0],['O',1.1,0,0]],f:'Lo sueltas al respirar, y las plantas lo usan para crecer.'},
+  NaCl:{n:'Sal de cocina',w:'desierto',atoms:[['Na',-0.72,0,0],['Cl',0.72,0,0]],f:'La sal de la comida está hecha de sodio y cloro.'},
+  HCl:{n:'Ácido clorhídrico',w:'desierto',atoms:[['Cl',0.35,0,0],['H',-0.6,0,0]],f:'Tu estómago lo usa para deshacer la comida.'},
+  H2S:{n:'Ácido sulfhídrico',w:'desierto',atoms:[['S',0,0.15,0],['H',-0.85,-0.5,0],['H',0.85,-0.5,0]],f:'Es el gas que huele a huevo podrido.'},
+  N2:{n:'Nitrógeno del aire',w:'nieve',atoms:[['N',-0.55,0,0],['N',0.55,0,0]],f:'Casi todo el aire que respiras es esta molécula.'},
+  NH3:{n:'Amoníaco',w:'nieve',atoms:[['N',0,0.25,0],['H',0.8,-0.3,0],['H',-0.4,-0.3,0.7],['H',-0.4,-0.3,-0.7]],f:'Huele muy fuerte y se usa en productos de limpieza.'},
+  MgO:{n:'Óxido de magnesio',w:'nieve',atoms:[['Mg',-0.7,0,0],['O',0.7,0,0]],f:'Es el polvo blanco que queda cuando el magnesio arde.'},
+  O3:{n:'Ozono',w:'luna',atoms:[['O',0,0.3,0],['O',-0.95,-0.3,0],['O',0.95,-0.3,0]],f:'Allá arriba en el cielo nos protege del sol fuerte.'},
+  CaO:{n:'Cal viva',w:'luna',atoms:[['Ca',-0.75,0,0],['O',0.75,0,0]],f:'Se usa para fabricar cemento.'}
+};
+const MOL_IDS = Object.keys(MOLS);
+const molCount = id => { const c={}; MOLS[id].atoms.forEach(([s])=>c[s]=(c[s]||0)+1); return c; };
+const molMass = id => MOLS[id].atoms.reduce((a,[s])=>a+ELEMENTS[s].m,0);
+const FORMULAS = {"H2": "H<sub>2</sub>", "O2": "O<sub>2</sub>", "H2O": "H<sub>2</sub>O", "CH4": "CH<sub>4</sub>", "CO2": "CO<sub>2</sub>", "NaCl": "NaCl", "HCl": "HCl", "H2S": "H<sub>2</sub>S", "N2": "N<sub>2</sub>", "NH3": "NH<sub>3</sub>", "MgO": "MgO", "O3": "O<sub>3</sub>", "CaO": "CaO"};
+const formulaHtml = id => FORMULAS[id];
+const LAB_C = {x:8.5, z:-8.5};
+const SRC_POS = [[15,-10],[13,-15.5],[18.5,-13],[10,-18.5],[19.5,-6.5]];
+const ELEM_RESPAWN = 60000;
+let labWall=null, labWallTex=null, molHolo=null;
+
+function elemTile(sym, size=46, known=true){
+  const E=ELEMENTS[sym]; const dark = ['C','N','Na','Fe'].includes(sym);
+  return `<span class="etile" style="width:${size}px;height:${size}px;background:${known?E.css:'#e3e7ef'};color:${known&&dark?'#fff':'#1b2445'}"><small>${E.z}</small><b>${known?sym:'?'}</b></span>`;
+}
+function drawLabWall(){
+  if(!labWallTex) return;
+  const c=labWall.getContext('2d'), W2=labWall.width, H2=labWall.height; c.fillStyle='#1b2445'; c.fillRect(0,0,W2,H2);
+  const cw=(W2-24)/18, ch=(H2-60)/6;
+  c.fillStyle='#ffffff'; c.font='800 26px "Baloo 2","Trebuchet MS",sans-serif'; c.textAlign='center'; c.textBaseline='middle';
+  c.fillText('TABLA PERIÓDICA · '+EL_IDS.filter(s=>state.found[s]).length+' de '+EL_IDS.length, W2/2, 24);
+  for(let p=1;p<=6;p++) for(let g=1;g<=18;g++){ if(!ptValid(p,g)) continue;
+    const x=12+(g-1)*cw, y=48+(p-1)*ch; const sym=EL_IDS.find(s=>PT_POS[s][0]===p&&PT_POS[s][1]===g);
+    c.fillStyle = sym ? (state.found[sym] ? ELEMENTS[sym].css : '#5d6680') : '#2c3758'; c.fillRect(x+1.5,y+1.5,cw-3,ch-3);
+    if(sym){ c.fillStyle = state.found[sym] ? (['C','N','Na','Fe'].includes(sym)?'#ffffff':'#1b2445') : '#c7cdda'; c.font=`800 ${Math.round(ch*0.5)}px "Baloo 2","Trebuchet MS",sans-serif`; c.fillText(state.found[sym]?sym:'?', x+cw/2, y+ch/2+2); }
+  }
+  labWallTex.needsUpdate=true;
+}
+function buildMolMesh(id, scale=1){
+  const g=new THREE.Group(); const at=MOLS[id].atoms;
+  at.forEach(([s,x,y,z])=>{ mesh(new THREE.SphereGeometry(ELEMENTS[s].r*scale,20,14), new THREE.MeshLambertMaterial({color:ELEMENTS[s].css, emissive:ELEMENTS[s].css, emissiveIntensity:0.12}), x*scale,y*scale,z*scale, g); });
+  const [,x0,y0,z0]=at[0]; const a=new THREE.Vector3(x0,y0,z0).multiplyScalar(scale);
+  for(let i=1;i<at.length;i++){ const b=new THREE.Vector3(at[i][1],at[i][2],at[i][3]).multiplyScalar(scale);
+    const len=a.distanceTo(b); const cyl=mesh(new THREE.CylinderGeometry(0.07*scale,0.07*scale,len,8), M(0xdfe6f2), 0,0,0, g);
+    cyl.position.copy(a).add(b).multiplyScalar(0.5); cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), b.clone().sub(a).normalize()); }
+  return g;
+}
+function showHolo(id){ if(!molHolo) return; while(molHolo.children.length) molHolo.remove(molHolo.children[0]); if(id && MOLS[id]) molHolo.add(buildMolMesh(id,0.7)); }
+function buildLab(wr){
+  const g=new THREE.Group(); g.position.set(LAB_C.x,0,LAB_C.z); g.rotation.y=Math.atan2(-LAB_C.x,-LAB_C.z); scene.add(g);
+  mesh(new THREE.BoxGeometry(5.6,0.12,4.2), M(0xdfe6f2), 0,0.06,0, g);
+  // pared con la tabla periódica
+  mesh(new THREE.BoxGeometry(5.2,3.2,0.25), M(0xf3efe6), 0,1.7,-1.7, g);
+  mesh(new THREE.BoxGeometry(5.5,0.3,0.5), M(0x1fb5a6), 0,3.4,-1.7, g);
+  labWall=document.createElement('canvas'); labWall.width=720; labWall.height=300; labWallTex=new THREE.CanvasTexture(labWall);
+  mesh(new THREE.PlaneGeometry(4.8,2.0), new THREE.MeshBasicMaterial({map:labWallTex}), 0,1.95,-1.56, g);
+  drawLabWall();
+  // mesa con frascos
+  mesh(new THREE.BoxGeometry(3.4,0.12,1.1), M(0xffffff), 0,1.0,0.35, g);
+  for(const sx of [-1.55,1.55]) for(const sz of [-0.1,0.8]) mesh(new THREE.BoxGeometry(0.12,1,0.12), M(0x8a8f9c), sx,0.5,sz, g);
+  [['#e63946',-1.2],['#2a6fdb',-0.85],['#2bb673',-0.5]].forEach(([col,x])=>{ const fm=new THREE.MeshLambertMaterial({color:col, transparent:true, opacity:0.75});
+    mesh(new THREE.SphereGeometry(0.17,14,10), fm, x,1.22,0.35, g); mesh(new THREE.CylinderGeometry(0.06,0.06,0.25,10), new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:0.6}), x,1.45,0.35, g); });
+  // holograma de la molécula
+  const ring=mesh(new THREE.TorusGeometry(0.5,0.05,8,30), new THREE.MeshBasicMaterial({color:0x7fe7ff}), 0.9,1.1,0.35, g); ring.rotation.x=Math.PI/2;
+  molHolo=new THREE.Group(); molHolo.position.set(0.9,1.95,0.35); g.add(molHolo);
+  animated.push(t=>{ molHolo.rotation.y=t*0.0009; molHolo.position.y=1.95+Math.sin(t*0.002)*0.08; });
+  showHolo(state.lastMol);
+  const lb=makeLabel('LABORATORIO',{bg:'#1fb5a6',fg:'#ffffff',w:4.2}); lb.position.set(LAB_C.x,4.6,LAB_C.z); scene.add(lb);
+  obstacles.push({x:LAB_C.x,z:LAB_C.z,r:2.3});
+  interactables.push({x:LAB_C.x,z:LAB_C.z,r:4.2, label:()=>'Entrar al laboratorio', action:()=>openLab('fabricar')});
+  // fuentes de elementos de este mundo
+  EL_IDS.filter(s=>ELEMENTS[s].w===state.world).forEach((s,i)=>makeElemNode('e_'+s, SRC_POS[i][0], SRC_POS[i][1], s, wr));
+}
+function makeElemNode(id, x, z, sym, wr){
+  const E=ELEMENTS[sym]; const g=new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+  let rock; const sg=new THREE.Group(); g.add(sg);
+  if(E.gas){
+    rock=mesh(new THREE.ConeGeometry(1.0,0.9,9,1,true), M(ROCK[state.world]), 0,0.45,0, g); rock.material.side=THREE.DoubleSide;
+    mesh(new THREE.CircleGeometry(0.45,16), new THREE.MeshBasicMaterial({color:E.css}), 0,0.88,0, sg).rotation.x=-Math.PI/2;
+    let acc=0, lt=0; animated.push(t=>{ const dt=Math.min(0.05,(t-lt)/1000||0); lt=t; if(nd.depleted) return; acc+=dt; if(acc>0.18){ acc=0;
+      burst(x+(R()-0.5)*0.3, 1.0, z+(R()-0.5)*0.3, new THREE.Color(E.css).getHex(), 1); const q=parts3[parts3.length-1]; q.vx*=0.08; q.vz*=0.08; q.vy=2.8; q.life=0.9; } });
+  } else {
+    rock=mesh(new THREE.DodecahedronGeometry(1.0,0), M(0x6d727c), 0,0.55,0, g); rock.scale.set(1.1,0.8,1.0);
+    const cm=new THREE.MeshLambertMaterial({color:E.css, emissive:E.css, emissiveIntensity:0.25});
+    for(let k=0;k<4;k++){ const a=k*Math.PI/2+wr(), r=0.55; const c=mesh(new THREE.BoxGeometry(0.34,0.34,0.34), cm, Math.cos(a)*r, 0.8+wr()*0.3, Math.sin(a)*r, sg); c.rotation.set(wr(),wr(),wr()); }
+  }
+  const lb=makeLabel(sym,{bg:E.css,fg:['C','N','Na','Fe'].includes(sym)?'#ffffff':'#1b2445',w:1.6,font:86}); lb.position.set(0,2.3,0); g.add(lb);
+  const nd={id, x, z, elem:sym, g, sg, rock, hits:0, depleted:false, tier:0};
+  obstacles.push({x, z, r:1.0}); nodes.push(nd);
+  interactables.push({x, z, r:2.3, node:nd, label:()=>nodeLabel(nd), action:()=>mineHit(nd,false)});
+  const at=(W().mined||{})[id]; if(at && Date.now()-at < ELEM_RESPAWN) setDepleted(nd,true);
+}
+function elemHit(nd, fromHold){
+  const E=ELEMENTS[nd.elem];
+  if(nd.depleted){ if(!fromHold) toast('Fuente vacía',['Vuelve a llenarse en un minuto.'],4000); return; }
+  mineCd=0.34; swingT=E.gas?0:0.26; pickShowT=E.gas?0:2.5; targetFacing=Math.atan2(nd.x-P.x, nd.z-P.z);
+  const need = E.gas ? 1 : 3; nd.hits++; nd.shake=0.15; sfx.tink();
+  burst(nd.x,1,nd.z,new THREE.Color(E.css).getHex(),3); nd.sg.scale.setScalar(1-(nd.hits/need)*0.4);
+  if(nd.hits>=need){
+    const gain=ri(2,3); state.atoms[nd.elem]=(state.atoms[nd.elem]||0)+gain;
+    W().mined[nd.id]=Date.now(); setDepleted(nd,true); sfx.gem(); burst(nd.x,1.2,nd.z,new THREE.Color(E.css).getHex(),14);
+    floatText('+'+gain+' '+nd.elem, nd.x, 2.8, nd.z, E.css);
+    const first=!state.found[nd.elem]; state.found[nd.elem]=true; save(); drawLabWall();
+    if(first) setTimeout(()=>showFicha(nd.elem,true), 450);
+  }
+}
+function showFicha(sym, discovered){
+  const E=ELEMENTS[sym];
+  openModal(discovered?'¡Descubriste el '+E.n+'!':E.n, `<div class="ficha">${elemTile(sym,110)}<div class="ficha-t">
+    <p class="q" style="margin:0">${esc(E.f)}</p>
+    <dl class="fdl"><dt>Símbolo</dt><dd>${sym}</dd><dt>Número atómico</dt><dd>${E.z} <small>(tiene ${E.z} ${E.z===1?'protón':'protones'})</small></dd><dt>Masa</dt><dd>${E.m} <small>(exacta: ${E.ex})</small></dd><dt>Es un</dt><dd>${CAT_N[E.cat].toLowerCase()}</dd></dl></div></div>
+    ${discovered?'<p class="note">Ya está en la tabla periódica del laboratorio. Con sus átomos puedes fabricar moléculas.</p>':''}`,
+    [{label:'Seguir',fn:closeModal}], (discovered?'Descubriste el '+E.n+'. ':'')+'Su símbolo es '+sym+'. Su masa es '+E.m+'. '+E.f);
+}
+let labArm=null;
+function openLab(tab){
+  const tabs=[['fabricar','Fabricar'],['tabla','Tabla periódica'],['clasificar','Clasificar']];
+  let body=`<div class="shop-tabs">${tabs.map(([k,l])=>`<button type="button" class="ed-tab ${k===tab?'sel':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
+  if(tab==='tabla'){
+    let cells=''; for(let p=1;p<=6;p++) for(let g=1;g<=18;g++){ const sym=EL_IDS.find(s=>PT_POS[s][0]===p&&PT_POS[s][1]===g);
+      if(!ptValid(p,g)) cells+=`<i style="grid-row:${p};grid-column:${g}" class="pt-gap"></i>`;
+      else if(sym) cells+=`<button type="button" class="pt-cell ${state.found[sym]?'on':''}" style="grid-row:${p};grid-column:${g};${state.found[sym]?'background:'+ELEMENTS[sym].css+';color:'+(['C','N','Na','Fe'].includes(sym)?'#fff':'#1b2445'):''}" data-el="${sym}" ${state.found[sym]?'':'disabled'} aria-label="${state.found[sym]?ELEMENTS[sym].n:'Elemento por descubrir'}"><small>${ELEMENTS[sym].z}</small>${state.found[sym]?sym:'?'}${state.found[sym]?`<em>${state.atoms[sym]||0}</em>`:''}</button>`;
+      else cells+=`<i style="grid-row:${p};grid-column:${g}" class="pt-empty"></i>`; }
+    const nf=EL_IDS.filter(s=>state.found[s]).length;
+    body+=`<p>Descubriste <b>${nf} de ${EL_IDS.length}</b> elementos. Toca uno para ver su ficha. El número pequeño de abajo dice cuántos átomos tienes.</p><div class="pt-wrap"><div class="pt">${cells}</div></div>
+      <p class="note">Hay elementos en los 4 mundos: busca rocas con letras y géiseres de colores cerca de cada laboratorio.</p>`;
+  }
+  if(tab==='fabricar'){
+    const here=MOL_IDS.filter(id=>MOLS[id].w===state.world);
+    body+=`<p>Junta átomos y fabrica moléculas. Para terminar, calcula cuánto pesa la molécula.</p><div class="shop-list">`+here.map(id=>{ const cnt=molCount(id), ok=Object.entries(cnt).every(([s,n])=>(state.atoms[s]||0)>=n), made=state.mols[id]||0;
+      const need=Object.entries(cnt).map(([s,n])=>{ const have=state.atoms[s]||0; return `<span class="cost ${have>=n?'ok':''}">${elemTile(s,24,!!state.found[s])} <b>${Math.min(have,n)}/${n}</b> ${esc(state.found[s]?ELEMENTS[s].n.toLowerCase():'???')}</span>`; }).join('');
+      const miss=Object.entries(cnt).filter(([s,n])=>(state.atoms[s]||0)<n).map(([s,n])=>{ const E=ELEMENTS[s]; return (n-(state.atoms[s]||0))+' '+(state.found[s]?E.n.toLowerCase():'átomo misterioso')+(E.w!==state.world?' ('+WORLDS[E.w].name+')':''); });
+      return `<div class="shop-item ${made?'owned':''}"><div class="si-head"><h3>${esc(MOLS[id].n)} · <span class="fml">${formulaHtml(id)}</span></h3></div>
+        <div class="costs">${need}</div>${made?`<span class="tag">Fabricada ${made} ${made===1?'vez':'veces'}</span>`:''}
+        ${ok?`<button class="btn small" type="button" data-mol="${id}">Fabricar</button>`:`<p class="miss">Te falta: ${esc(miss.join(', '))}.</p>`}</div>`; }).join('')+`</div>`;
+    const others=WORLD_IDS.filter(w=>w!==state.world).map(w=>WORLDS[w].name);
+    body+=`<p class="note">Los laboratorios de ${esc(others.join(', '))} fabrican otras moléculas.</p>`;
+  }
+  if(tab==='clasificar'){
+    const nf=EL_IDS.filter(s=>state.found[s]);
+    body += nf.length<3 ? `<p class="q">Descubre por lo menos 3 elementos para jugar a clasificar.</p>`
+      : `<p class="q">¿Cada elemento es metal, no metal o gas? Son 5 preguntas.</p><div class="row"><button class="btn" type="button" id="clsGo">Empezar</button></div>`;
+  }
+  openModal('Laboratorio', body, [{label:'Salir',fn:closeModal}], tab==='fabricar'?'Laboratorio. Junta átomos y fabrica moléculas.':'');
+  document.querySelectorAll('#mBody [data-tab]').forEach(b=>b.onclick=()=>openLab(b.dataset.tab));
+  document.querySelectorAll('#mBody [data-el]').forEach(b=>b.onclick=()=>showFicha(b.dataset.el,false));
+  document.querySelectorAll('#mBody [data-mol]').forEach(b=>b.onclick=()=>molQuiz(b.dataset.mol));
+  const go=$('#clsGo'); if(go) go.onclick=()=>classifyRound(0,0);
+}
+function molQuiz(id){
+  const cnt=molCount(id), mass=molMass(id);
+  const parts=MOLS[id].atoms.map(([s])=>ELEMENTS[s].m);
+  const desc=Object.entries(cnt).map(([s,n])=>`${n} ${n===1?'átomo':'átomos'} de ${ELEMENTS[s].n.toLowerCase()} (pesa ${ELEMENTS[s].m}${n>1?' cada uno':''})`).join(' y ');
+  const showSum = state.level < 3 || parts.length > 3 && state.level < 4;
+  const wrongs=[mass+1, mass-1, mass+ELEMENTS[MOLS[id].atoms[MOLS[id].atoms.length-1][0]].m, mass-ELEMENTS[MOLS[id].atoms[0][0]].m, mass+2].filter(v=>v>0 && v!==mass);
+  const opts=shuffle([mass, ...shuffle([...new Set(wrongs)]).slice(0,2)]);
+  openModal('Fabricar '+MOLS[id].n, `<div class="molrow"><div class="molsvg">${molSVG(id)}</div><div><p class="q" style="margin:0">${esc(MOLS[id].n)} tiene ${esc(desc)}.</p>
+    ${showSum?`<p class="sum">${parts.join(' + ')} = ?</p>`:''}<p>¿Cuánto pesa la molécula?</p></div></div>
+    <div class="opts">${opts.map(v=>`<button class="opt" type="button" data-v="${v}"><span class="big-num" style="font-size:2.4rem">${v}</span></button>`).join('')}</div><div class="feedback" id="fb"></div>`,
+    [{label:'Volver',cls:'ghost',fn:()=>openLab('fabricar')}], MOLS[id].n+' tiene '+desc+'. ¿Cuánto pesa la molécula?');
+  let first=true;
+  document.querySelectorAll('#mBody .opt').forEach(b=>b.onclick=()=>{
+    if(+b.dataset.v===mass){
+      Object.entries(cnt).forEach(([s,n])=>state.atoms[s]-=n);
+      const firstMake=!state.mols[id]; state.mols[id]=(state.mols[id]||0)+1; state.lastMol=id; state.stats.lab.ok++;
+      const coins = firstMake ? 5 : 2; state.coins+=coins; save(); updateBagChip(); showHolo(id); sfx.crystal();
+      document.querySelectorAll('#mBody .opt').forEach(x=>x.disabled=true); b.classList.add('ok');
+      $('#fb').textContent = (first?'¡Exacto! ':'¡Eso es! ')+'Pesa '+mass+'.';
+      setTimeout(()=>openModal('¡Fabricaste '+MOLS[id].n.toLowerCase()+'!', `<div class="molrow"><div class="molsvg">${molSVG(id)}</div><div><p class="q" style="margin:0"><span class="fml">${formulaHtml(id)}</span> pesa <b>${mass}</b>.</p><p>${esc(MOLS[id].f)}</p><p>Ganaste <b>${coins}</b> monedas. Mírala girar en la mesa del laboratorio.</p></div></div>`,
+        [{label:'Fabricar otra',cls:'ghost',fn:()=>openLab('fabricar')},{label:'Seguir',fn:closeModal}], 'Fabricaste '+MOLS[id].n+'. Pesa '+mass+'. '+MOLS[id].f), 900);
+    } else { first=false; state.stats.lab.err++; save(); b.classList.add('bad'); b.disabled=true; sfx.err(); $('#fb').textContent='Suma otra vez, átomo por átomo.'; }
+  });
+}
+function molSVG(id){
+  const at=MOLS[id].atoms; const k=34, cx=90, cy=70;
+  const pts=at.map(([s,x,y,z])=>[s, cx+(x+z*0.35)*k, cy-(y-z*0.25)*k]);
+  let o=`<svg viewBox="0 0 180 140" width="180" height="140" aria-hidden="true">`;
+  for(let i=1;i<pts.length;i++) o+=`<line x1="${pts[0][1]}" y1="${pts[0][2]}" x2="${pts[i][1]}" y2="${pts[i][2]}" stroke="#8a8f9c" stroke-width="7" stroke-linecap="round"/>`;
+  [...pts].map((p,i)=>[p,at[i][3]]).sort((a,b)=>a[1]-b[1]).forEach(([[s,x,y]])=>{ const E=ELEMENTS[s], r=E.r*k*1.1;
+    o+=`<circle cx="${x}" cy="${y}" r="${r}" fill="${E.css}" stroke="#1b2445" stroke-width="3"/><text x="${x}" y="${y+6}" text-anchor="middle" font-size="${Math.max(13,r*0.9)}" font-weight="800" font-family="Baloo 2,Trebuchet MS,sans-serif" fill="${['C','N','Na','Fe'].includes(s)?'#fff':'#1b2445'}">${s}</text>`; });
+  return o+'</svg>';
+}
+function classifyRound(i, score){
+  const nf=EL_IDS.filter(s=>state.found[s]);
+  if(i>=5){ const c=score; state.coins+=c; save(); updateBagChip(); sfx.level();
+    openModal('¡Clasificación lista!', `<p class="q">Acertaste <b>${score} de 5</b>. Ganaste ${c} ${c===1?'moneda':'monedas'}.</p>`, [{label:'Otra vez',cls:'ghost',fn:()=>classifyRound(0,0)},{label:'Volver al laboratorio',fn:()=>openLab('clasificar')}], 'Acertaste '+score+' de 5.'); return; }
+  const sym=pick(nf), E=ELEMENTS[sym];
+  openModal('Clasificar · '+(i+1)+' de 5', `<div class="ficha">${elemTile(sym,90)}<div class="ficha-t"><p class="q" style="margin:0">${esc(E.n)}</p><p>¿Qué es?</p></div></div>
+    <div class="opts">${['metal','nometal','gas'].map(k=>`<button class="opt txt" style="width:auto;min-width:130px" type="button" data-c="${k}">${CAT_N[k]}</button>`).join('')}</div><div class="feedback" id="fb"></div>`,
+    [{label:'Salir',cls:'ghost',fn:()=>openLab('clasificar')}], E.n+'. ¿Es metal, no metal o gas?');
+  let tried=false;
+  document.querySelectorAll('#mBody .opt').forEach(b=>b.onclick=()=>{
+    if(b.dataset.c===E.cat){ b.classList.add('ok'); sfx.ok(); if(!tried) state.stats.lab.ok++; save(); document.querySelectorAll('#mBody .opt').forEach(x=>x.disabled=true);
+      $('#fb').textContent='¡Sí! '+E.n+' es '+CAT_N[E.cat].toLowerCase()+'.'; setTimeout(()=>classifyRound(i+1, score+(tried?0:1)), 1000); }
+    else { tried=true; state.stats.lab.err++; save(); b.classList.add('bad'); b.disabled=true; sfx.err(); $('#fb').textContent='Mmm, no. Piensa: ¿brilla como metal, es sólido sin brillo o es un gas?'; }
+  });
 }
 
 /* ---------- bloques del jugador ---------- */
@@ -1624,6 +1880,7 @@ function openHelp(){
   <li>Presiona <kbd>C</kbd> para cambiar tu personaje.</li>
   <li>Con la mochila cohete, presiona <kbd>F</kbd> para dar una voltereta en el aire.</li>
   <li>El portal morado de la plaza te lleva a otros mundos.</li>
+  <li>Cerca de cada laboratorio hay elementos de la tabla periódica. Júntalos y fabrica moléculas.</li>
   <li>Mantén <kbd>E</kbd> junto a una veta para picar cristales. Cámbialos con el Joyero. <kbd>I</kbd> abre tu bolsa.</li>
   <li>Presiona <kbd>H</kbd> para escuchar las instrucciones.</li></ol>`, [{label:'Seguir',fn:closeModal}], 'Camina con las flechas. Acércate a algo y presiona E. Cada zona te da un cristal. Con cuatro cristales, ve a la torre.');
 }
@@ -1660,6 +1917,7 @@ function openParent(){
     <div class="prz">${[0,1,2,3].map(i=>{ const p=(state.prizes||[])[i]||{n:'',c:''}; return `<input id="pzn${i}" aria-label="Premio ${i+1}" placeholder="Premio ${i+1}" value="${esc(p.n||'')}"><input id="pzc${i}" aria-label="Monedas premio ${i+1}" inputmode="numeric" placeholder="Monedas" value="${p.c||''}">`; }).join('')}</div>
     <h3 style="margin:6px 0 0;font-family:var(--display)">Canjes por entregar</h3>
     ${(state.redeems||[]).filter(r=>!r.done).length ? (state.redeems||[]).map((r,i)=>r.done?'':`<div class="pend"><span><b>${esc(r.n)}</b> · ${r.c} monedas · ${new Date(r.at).toLocaleDateString('es-CO')}</span><button class="btn small ghost" type="button" data-done="${i}">Entregado</button></div>`).join('') : '<p class="note">No hay canjes pendientes.</p>'}
+    <p class="note">Laboratorio: ${EL_IDS.filter(s=>state.found[s]).length} de ${EL_IDS.length} elementos · ${MOL_IDS.filter(m=>state.mols[m]).length} de ${MOL_IDS.length} moléculas · aciertos ${state.stats.lab.ok}, errores ${state.stats.lab.err}</p>
     <p class="note">Cristales: ${CRYS_IDS.reduce((a,id)=>a+(state.inv[id]||0),0)} · Monedas: ${state.coins} · ${esc(PICKS[state.pick].n)}</p>
     <p class="note">El progreso se guarda en este navegador. Si se alcanzó el límite de hoy, "Dar 15 min más" lo extiende.</p>`,
     [{label:'Borrar progreso',cls:'ghost',id:'rst',fn:()=>{ const b=$('#rst'); if(b.dataset.arm){ try{localStorage.removeItem(STORE);}catch(e){} location.reload(); } else { b.dataset.arm=1; b.textContent='Confirmar: borrar todo'; } }},
@@ -1744,7 +2002,10 @@ function update(dt){
   for(const id of ZONE_IDS){ const Z=ZONES[id]; const k=id+':'+state.level+':'+state.world;
     if(!state.done[id] && !state.seenIntro[k] && Math.hypot(P.x-Z.x,P.z-Z.z)<15){ state.seenIntro[k]=1; save(); toast(...zoneIntro[id]); } }
   // objetivo cercano
-  nearest=findNearest(); updateMines(dt); const pr=$('#prompt');
+  nearest=findNearest(); updateMines(dt);
+  if(!state.seenIntro['lab:'+state.world] && Math.hypot(P.x-LAB_C.x,P.z-LAB_C.z)<10){ state.seenIntro['lab:'+state.world]=1; save();
+    toast('Laboratorio',['Busca rocas con letras y géiseres de colores: son elementos.','Pícalos o captúralos con E.','En el laboratorio fabricas moléculas con sus átomos.']); }
+  const pr=$('#prompt');
   if(nearest){ pr.innerHTML=`<kbd>E</kbd> ${esc(nearest.label())}`; pr.hidden=false; } else pr.hidden=true;
 }
 let last=performance.now(), startAng=0;
