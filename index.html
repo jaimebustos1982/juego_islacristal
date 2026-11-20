@@ -53,7 +53,8 @@ kbd{font-family:var(--display);font-weight:800;color:var(--ink);background:var(-
 .cr{width:18px;height:18px;transform:rotate(45deg);border:3px solid var(--ink);background:#cfd5e2;border-radius:3px}
 .cr.on{box-shadow:0 0 10px 2px rgba(255,255,255,.9)}
 .hud-tr{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));display:flex;gap:8px;pointer-events:auto}
-#bag{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:var(--paper);border:3px solid var(--ink);border-radius:14px;padding:4px 16px;font-family:var(--display);font-weight:800;font-size:1.3rem;box-shadow:0 4px 0 var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+#bag{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:var(--paper);border:3px solid var(--ink);border-radius:14px;padding:4px 16px;font-family:var(--display);font-weight:800;font-size:1.3rem;box-shadow:0 4px 0 var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:auto;display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px)}
+#bag button{font-family:var(--display);font-weight:800;font-size:1rem;background:var(--coral);color:#fff;border:3px solid var(--ink);border-radius:10px;padding:0 10px;cursor:pointer}
 #cross{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px}
 #cross::before,#cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 0 2px var(--ink)}
 #cross::before{left:8px;top:0;width:2px;height:18px}
@@ -303,7 +304,7 @@ function defaultState(){
     done:{numeros:false,patrones:false,bloques:false,robot:false},
     stats:{numeros:{ok:0,err:0},patrones:{ok:0,err:0},bloques:{ok:0,err:0},robot:{ok:0,err:0},lab:{ok:0,err:0}},
     settings:{limit:60, breakEvery:15, sound:true},
-    today:{date:todayStr(), secs:0, extra:0}, totalSecs:0, seenIntro:{}, robotSeen:[], blocks:[], world:'isla', worlds:null, atoms:{}, found:{}, mols:{}, lastMol:null, inv:{}, coins:0, pick:0, owned:{}, redeems:[],
+    today:{date:todayStr(), secs:0, extra:0}, totalSecs:0, seenIntro:{}, robotSeen:[], blocks:[], world:'isla', worlds:null, atoms:{}, found:{}, mols:{}, animals:{}, lastMol:null, inv:{}, coins:0, pick:0, owned:{}, redeems:[],
     prizes:[{n:'Elegir el postre',c:30},{n:'Ir al parque con papá',c:60},{n:'Escoger la película del fin de semana',c:100}] };
 }
 let state = defaultState();
@@ -324,7 +325,7 @@ const WORLDS = {
 };
 const WORLD_IDS = Object.keys(WORLDS);
 const emptyDone = () => ({numeros:false,patrones:false,bloques:false,robot:false});
-state.atoms = state.atoms||{}; state.found = state.found||{}; state.mols = state.mols||{};
+state.animals = state.animals||{}; state.atoms = state.atoms||{}; state.found = state.found||{}; state.mols = state.mols||{};
 state.inv = state.inv||{}; state.owned = state.owned||{}; state.redeems = state.redeems||[];
 if(!state.worlds){ state.worlds = { isla:{ done: state.done || emptyDone(), blocks: state.blocks || [] } }; }
 const worldOpen = id => state.stars >= WORLDS[id].need;
@@ -461,7 +462,7 @@ function buildWorld(){
     animated.push(t=>{ g.position.x += 0.01; if(g.position.x>120) g.position.x=-120; });
   }
 
-  buildTower(); buildNumeros(); buildTemplo(); buildTaller(); buildRobot(); buildPortals(); buildShop(); buildLab(mulberry32(77));
+  buildTower(); buildNumeros(); buildTemplo(); buildTaller(); buildRobot(); buildPortals(); buildShop(); buildLab(mulberry32(77)); spawnFauna();
 
   // letreros en la plaza
   const signs=[['NÚMEROS',2.6,-10.5,'#f4a300'],['PATRONES',10.5,-2.6,'#8a5cf6'],['BLOQUES',-2.6,10.5,'#ef5d60'],['ROBOT',-10.5,2.6,'#1fb5a6']];
@@ -959,7 +960,7 @@ function openBag(){
     const open = worldOpen(w);
     return `<div class="bag-world"><h3>${esc(WORLDS[w].name)}</h3><div class="bag-row">${worldCrys(w).map(id=>{ const C=CRYSTALS[id], n=state.inv[id]||0;
       return `<div class="bag-item ${n?'':'zero'}">${gemSVG(open?C.css:'#cfd5e2',34)}<span>${open?esc(C.n):'???'}</span><b>${n}</b></div>`; }).join('')}</div></div>`; }).join('');
-  openModal('Tu bolsa', `<div class="bag-top"><span>${coinSVG(30)} <b>${state.coins}</b> monedas</span><span class="tag">${esc(PICKS[state.pick].n)}</span></div>${groups}${EL_IDS.some(s=>state.found[s])?`<div class="bag-world"><h3>Átomos</h3><div class="costs">${EL_IDS.filter(s=>state.found[s]).map(s=>`<span class="cost ok">${elemTile(s,24)} <b>${state.atoms[s]||0}</b></span>`).join('')}</div></div>`:''}<p class="note">Cristal común = 1 moneda · poco común = 3 · raro = 10. Véndelos o cámbialos con el Joyero de la plaza.</p>`, [{label:'Cerrar',fn:closeModal}], 'Tu bolsa. Tienes '+state.coins+' monedas.');
+  openModal('Tu bolsa', `<div class="bag-top"><span>${coinSVG(30)} <b>${state.coins}</b> monedas</span><span class="tag">${esc(PICKS[state.pick].n)}</span></div>${groups}${EL_IDS.some(s=>state.found[s])?`<div class="bag-world"><h3>Átomos</h3><div class="costs">${EL_IDS.filter(s=>state.found[s]).map(s=>`<span class="cost ok">${elemTile(s,24)} <b>${state.atoms[s]||0}</b></span>`).join('')}</div></div>`:''}<div class="bag-world"><h3>Álbum de animales y seres · ${FAUNA_IDS.filter(i=>state.animals[i]).length} de ${FAUNA_IDS.length}</h3><div class="costs">${FAUNA_IDS.map(i=>`<span class="cost ${state.animals[i]?'ok':''}">${state.animals[i]?esc(FAUNA[i].n):'???'}</span>`).join('')}</div></div><p class="note">Cristal común = 1 moneda · poco común = 3 · raro = 10. Véndelos o cámbialos con el Joyero de la plaza.</p>`, [{label:'Cerrar',fn:closeModal}], 'Tu bolsa. Tienes '+state.coins+' monedas.');
 }
 
 /* Joyero */
@@ -1269,6 +1270,157 @@ function classifyRound(i, score){
       $('#fb').textContent='¡Sí! '+E.n+' es '+CAT_N[E.cat].toLowerCase()+'.'; setTimeout(()=>classifyRound(i+1, score+(tried?0:1)), 1000); }
     else { tried=true; state.stats.lab.err++; save(); b.classList.add('bad'); b.disabled=true; sfx.err(); $('#fb').textContent='Mmm, no. Piensa: ¿brilla como metal, es sólido sin brillo o es un gas?'; }
   });
+}
+
+/* ---------- animales y seres ---------- */
+const FAUNA = {
+  tortuga:{n:'Tortuga marina',w:'isla',tipo:'Reptil',f:'Las tortugas marinas ponen sus huevos en la arena de la playa.',move:'walk',sp:0.6,count:2},
+  loro:{n:'Loro',w:'isla',tipo:'Ave',f:'Algunos loros pueden imitar palabras que escuchan.',move:'fly',sp:3,count:2},
+  cangrejo:{n:'Cangrejo',w:'isla',tipo:'Crustáceo',f:'Muchos cangrejos caminan de lado.',move:'side',sp:1.4,count:3},
+  camello:{n:'Camello',w:'desierto',tipo:'Mamífero',f:'Su joroba guarda grasa, no agua. Con esa grasa aguanta muchos días sin comer.',move:'walk',sp:1.1,count:2},
+  zorro:{n:'Zorro del desierto',w:'desierto',tipo:'Mamífero',f:'Sus orejas gigantes le ayudan a soltar el calor del cuerpo.',move:'walk',sp:2,count:2},
+  lagarto:{n:'Lagarto',w:'desierto',tipo:'Reptil',f:'Toma el sol para calentarse, porque su cuerpo no produce su propio calor.',move:'walk',sp:1.6,count:2},
+  pinguino:{n:'Pingüino',w:'nieve',tipo:'Ave',f:'Es un ave que no vuela, pero nada muy rápido.',move:'waddle',sp:0.9,count:3},
+  oso:{n:'Oso polar',w:'nieve',tipo:'Mamífero',f:'Debajo de su pelaje blanco, su piel es negra.',move:'walk',sp:1,count:1},
+  rover:{n:'Robot explorador',w:'luna',tipo:'Máquina',f:'Robots de verdad han explorado la Luna y Marte, manejados desde la Tierra.',move:'walk',sp:0.8,count:2},
+  alien:{n:'Glip',w:'luna',tipo:'Ser imaginario',f:'Glip no existe de verdad: es un ser inventado para este juego.',move:'hop',sp:1.4,count:2},
+  rana:{n:'Rana',w:'selva',tipo:'Anfibio',f:'Las ranas también pueden respirar a través de su piel.',move:'hop',sp:1.6,count:3},
+  tucan:{n:'Tucán',w:'selva',tipo:'Ave',f:'Su pico enorme es muy liviano y le ayuda a soltar calor.',move:'fly',sp:2.6,count:2},
+  mono:{n:'Mono',w:'selva',tipo:'Mamífero',f:'Algunos monos usan la cola para agarrarse de las ramas.',move:'walk',sp:1.8,count:2},
+  caballo:{n:'Caballo',w:'castillo',tipo:'Mamífero',f:'Los caballos pueden dormir de pie.',move:'walk',sp:1.6,count:2},
+  dragon:{n:'Dragón',w:'castillo',tipo:'Ser imaginario',f:'Los dragones no existen: son seres de los cuentos.',move:'fly',sp:3.5,count:1}
+};
+const FAUNA_IDS = Object.keys(FAUNA);
+const animals = [];
+function quad(o){
+  const g=new THREE.Group(), L=c=>M(c), legs=[];
+  const bh=o.legH+o.bodyH/2;
+  mesh(new THREE.BoxGeometry(o.bodyW,o.bodyH,o.bodyL), L(o.col), 0,bh,0, g);
+  for(const sx of [-1,1]) for(const sz of [-1,1]){ const leg=new THREE.Group(); leg.position.set(sx*(o.bodyW/2-o.legW/2), o.legH, sz*(o.bodyL/2-o.legW)); g.add(leg);
+    mesh(new THREE.BoxGeometry(o.legW,o.legH,o.legW), L(o.legCol||o.col), 0,-o.legH/2,0, leg); legs.push(leg); }
+  const neck=new THREE.Group(); neck.position.set(0,bh+o.bodyH*0.3,o.bodyL/2-0.05); g.add(neck);
+  if(o.neck) mesh(new THREE.BoxGeometry(o.headW*0.6,o.neck,o.headW*0.6), L(o.col), 0,o.neck/2,0, neck);
+  const head=mesh(new THREE.BoxGeometry(o.headW,o.headW,o.headL), L(o.headCol||o.col), 0,(o.neck||0)+o.headW*0.3,o.headL*0.4, neck);
+  for(const sx of [-1,1]) mesh(new THREE.SphereGeometry(o.headW*0.09,8,6), L('#1b2445'), sx*o.headW*0.3,(o.neck||0)+o.headW*0.45,o.headL*0.4+o.headL/2, neck);
+  if(o.neck) neck.rotation.x=0.35;
+  if(o.tail){ const t=mesh(new THREE.CylinderGeometry(0.04,o.tailW||0.07,o.tail,6), L(o.tailCol||o.col), 0,bh+0.05,-o.bodyL/2-o.tail/2*0.8, g); t.rotation.x=-1.1; }
+  return {g,legs,neck,head};
+}
+function buildAnimal(id){
+  let r;
+  if(id==='camello'){ r=quad({col:'#c9a063',bodyW:0.8,bodyH:0.8,bodyL:1.7,legH:1.3,legW:0.2,neck:1.0,headW:0.38,headL:0.6,tail:0.5});
+    const hump=mesh(new THREE.SphereGeometry(0.45,12,8), M('#b98f55'), 0,2.25,0, r.g); hump.scale.y=0.8; }
+  if(id==='zorro'){ r=quad({col:'#e8c48a',bodyW:0.35,bodyH:0.35,bodyL:0.75,legH:0.35,legW:0.1,headW:0.3,headL:0.35,tail:0.55,tailW:0.12,tailCol:'#f6e2bf'});
+    for(const sx of [-1,1]){ const e=mesh(new THREE.ConeGeometry(0.11,0.4,4), M('#e8c48a'), sx*0.12,0.38,0.12, r.neck); e.rotation.z=-sx*0.25; } }
+  if(id==='oso'){ r=quad({col:'#f4f6fa',bodyW:1.1,bodyH:1.0,bodyL:1.9,legH:0.75,legW:0.34,neck:0.25,headW:0.6,headL:0.7,tail:0.15});
+    for(const sx of [-1,1]) mesh(new THREE.SphereGeometry(0.1,8,6), M('#f4f6fa'), sx*0.22,0.75,0.2, r.neck); }
+  if(id==='caballo'){ r=quad({col:'#8a5a3b',bodyW:0.7,bodyH:0.75,bodyL:1.7,legH:1.1,legW:0.18,neck:0.8,headW:0.36,headL:0.75,tail:0.8,tailCol:'#2b1a10',legCol:'#6e4529'});
+    mesh(new THREE.BoxGeometry(0.1,0.9,0.4), M('#2b1a10'), 0,0.5,-0.15, r.neck); }
+  if(id==='mono'){ r=quad({col:'#7a4f33',bodyW:0.4,bodyH:0.5,bodyL:0.55,legH:0.45,legW:0.12,neck:0.05,headW:0.36,headL:0.32,headCol:'#a8774f',tail:0.8,tailW:0.05}); }
+  if(id==='lagarto'){ r=quad({col:'#5fae4a',bodyW:0.35,bodyH:0.18,bodyL:0.9,legH:0.12,legW:0.1,headW:0.22,headL:0.3,tail:0.8,tailW:0.1}); }
+  if(id==='tortuga'){ const g=new THREE.Group(); const sh=mesh(new THREE.SphereGeometry(0.55,14,8,0,Math.PI*2,0,Math.PI/2), M('#3f8f4f'), 0,0.12,0, g); sh.scale.set(1,0.6,1.25);
+    mesh(new THREE.SphereGeometry(0.18,10,8), M('#8fbf6a'), 0,0.22,0.72, g); const legs=[];
+    for(const sx of [-1,1]) for(const sz of [-1,1]){ const l=new THREE.Group(); l.position.set(sx*0.42,0.12,sz*0.45); g.add(l); const f=mesh(new THREE.BoxGeometry(0.3,0.06,0.16), M('#8fbf6a'), sx*0.1,0,0, l); legs.push(l); }
+    r={g,legs}; }
+  if(id==='cangrejo'){ const g=new THREE.Group(); const b=mesh(new THREE.SphereGeometry(0.32,12,8), M('#e2523a'), 0,0.3,0, g); b.scale.set(1.3,0.55,1);
+    const legs=[]; for(const sx of [-1,1]){ const c=mesh(new THREE.SphereGeometry(0.13,8,6), M('#e2523a'), sx*0.5,0.35,0.3, g); c.scale.set(1,0.7,1.3);
+      for(let k=0;k<3;k++){ const l=new THREE.Group(); l.position.set(sx*0.3,0.28,-0.15+k*0.15); g.add(l); const m=mesh(new THREE.BoxGeometry(0.35,0.05,0.05), M('#c43e2b'), sx*0.17,-0.1,0, l); m.rotation.z=sx*0.6; legs.push(l); } }
+    for(const sx of [-1,1]){ mesh(new THREE.CylinderGeometry(0.02,0.02,0.18,6), M('#1b2445'), sx*0.1,0.48,0.25, g); mesh(new THREE.SphereGeometry(0.05,8,6), M('#1b2445'), sx*0.1,0.58,0.25, g); }
+    r={g,legs}; }
+  if(id==='pinguino'){ const g=new THREE.Group(); const p=buildPet('pingui'); p.scale.setScalar(1.7); p.position.y=0.62; g.add(p);
+    const legs=[]; for(const sx of [-1,1]){ const l=new THREE.Group(); l.position.set(sx*0.15,0.12,0.05); g.add(l); mesh(new THREE.BoxGeometry(0.14,0.05,0.24), M('#ff9a2e'), 0,-0.08,0.05, l); legs.push(l); }
+    r={g,legs,body:p}; }
+  if(id==='rover'){ const g=new THREE.Group(); mesh(new THREE.BoxGeometry(0.9,0.35,1.2), M('#dfe6f2'), 0,0.6,0, g); mesh(new THREE.BoxGeometry(0.85,0.05,1.0), M('#2a6fdb'), 0,0.8,0, g);
+    const legs=[]; for(const sx of [-1,1]) for(const sz of [-0.45,0,0.45]){ const w=new THREE.Group(); w.position.set(sx*0.55,0.22,sz); g.add(w); const m=mesh(new THREE.CylinderGeometry(0.2,0.2,0.14,12), M('#1b2445'), 0,0,0, w); m.rotation.z=Math.PI/2; legs.push(w); }
+    mesh(new THREE.CylinderGeometry(0.04,0.04,0.7,6), M('#8a8f9c'), 0,1.15,0.35, g); const cam=mesh(new THREE.BoxGeometry(0.3,0.18,0.18), M('#c7cdda'), 0,1.55,0.35, g);
+    mesh(new THREE.CircleGeometry(0.06,10), new THREE.MeshBasicMaterial({color:0x1fb5a6}), 0,1.55,0.45, g); r={g,legs,wheels:true}; }
+  if(id==='alien'){ const g=new THREE.Group(); const b=mesh(new THREE.SphereGeometry(0.45,16,12), new THREE.MeshLambertMaterial({color:0x7be05a, emissive:0x1f5a10}), 0,0.5,0, g); b.scale.y=1.1;
+    const eye=mesh(new THREE.SphereGeometry(0.17,12,10), M('#ffffff'), 0,0.65,0.36, g); mesh(new THREE.SphereGeometry(0.08,10,8), M('#1b2445'), 0,0.66,0.5, g);
+    for(const sx of [-1,1]){ mesh(new THREE.CylinderGeometry(0.02,0.02,0.4,6), M('#5fae4a'), sx*0.18,1.05,0, g); mesh(new THREE.SphereGeometry(0.07,8,6), new THREE.MeshBasicMaterial({color:0xff8fd8}), sx*0.18,1.27,0, g); }
+    r={g,legs:[]}; }
+  if(id==='rana'){ const g=new THREE.Group(); const b=mesh(new THREE.SphereGeometry(0.3,14,10), M('#3fbf4a'), 0,0.25,0, g); b.scale.set(1.1,0.75,1.2);
+    for(const sx of [-1,1]){ mesh(new THREE.SphereGeometry(0.1,10,8), M('#3fbf4a'), sx*0.14,0.45,0.18, g); mesh(new THREE.SphereGeometry(0.055,8,6), M('#1b2445'), sx*0.14,0.5,0.25, g);
+      const l=mesh(new THREE.SphereGeometry(0.12,8,6), M('#2f9a3a'), sx*0.28,0.12,-0.15, g); l.scale.set(0.8,0.6,1.5); }
+    r={g,legs:[]}; }
+  if(id==='loro' || id==='tucan' || id==='dragon'){
+    const g=new THREE.Group(); const big = id==='dragon' ? 3 : 1;
+    const col = id==='loro'?'#e63946':(id==='tucan'?'#1b2445':'#2bb673'), wcol = id==='loro'?'#2a6fdb':(id==='tucan'?'#1b2445':'#1f8a4a');
+    const b=mesh(new THREE.SphereGeometry(0.22*big,12,10), M(col), 0,0,0, g); b.scale.set(0.9,0.9,1.5);
+    mesh(new THREE.SphereGeometry(0.16*big,10,8), M(id==='tucan'?'#ffffff':col), 0,0.12*big,0.3*big, g);
+    const beak=mesh(new THREE.ConeGeometry(id==='tucan'?0.09:0.05*big, id==='tucan'?0.45:0.16*big, 8), M(id==='tucan'?'#ff7b00':(id==='dragon'?'#2bb673':'#ffc93c')), 0,0.1*big,(id==='tucan'?0.62:0.48*big), g); beak.rotation.x=Math.PI/2;
+    for(const sx of [-1,1]) mesh(new THREE.SphereGeometry(0.035*big,8,6), M(id==='dragon'?'#ffc93c':'#1b2445'), sx*0.08*big,0.18*big,0.42*big, g);
+    const legs=[]; for(const sx of [-1,1]){ const w=new THREE.Group(); w.position.set(sx*0.15*big,0.05*big,0); g.add(w); const m=mesh(new THREE.BoxGeometry(0.55*big,0.03*big,0.3*big), M(wcol), sx*0.28*big,0,0, w); legs.push(w); }
+    if(id==='loro') mesh(new THREE.BoxGeometry(0.1,0.04,0.45), M('#ffc93c'), 0,-0.02,-0.45, g);
+    if(id==='dragon'){ for(const sx of [-1,1]){ const h=mesh(new THREE.ConeGeometry(0.06*big,0.25*big,6), M('#f3efe6'), sx*0.08*big,0.3*big,0.28*big, g); h.rotation.x=-0.5; }
+      const t=mesh(new THREE.ConeGeometry(0.12*big,0.9*big,8), M(col), 0,0,-0.7*big, g); t.rotation.x=-Math.PI/2;
+      for(let k=0;k<4;k++) mesh(new THREE.ConeGeometry(0.05*big,0.12*big,4), M('#ffc93c'), 0,0.2*big,(0.2-k*0.15)*big, g); }
+    r={g,legs,wings:true};
+  }
+  return r;
+}
+function spawnFauna(){
+  const wr=mulberry32(4242+state.world.length*17);
+  FAUNA_IDS.filter(id=>FAUNA[id].w===state.world).forEach(id=>{
+    const F=FAUNA[id];
+    for(let c=0;c<F.count;c++){
+      let hx,hz,t=0; do{ const a=wr()*Math.PI*2, r=18+wr()*30; hx=Math.cos(a)*r; hz=Math.sin(a)*r; t++; }
+      while(t<60 && (Object.values(ZONES).some(Z=>Math.hypot(hx-Z.x,hz-Z.z)<9) || Math.hypot(hx-MINE_C.x,hz-MINE_C.z)<11 || obstacles.some(o=>o.top===undefined && Math.hypot(o.x-hx,o.z-hz)<o.r+1.5) || boxes.some(b=>Math.abs(hx-b.x)<b.hw+2 && Math.abs(hz-b.z)<b.hd+2)));
+      if(id==='dragon'){ hx=-32; hz=-32; }
+      const r=buildAnimal(id); r.g.scale.setScalar(({camello:1.5,caballo:1.4,oso:1.35,tortuga:1.4,cangrejo:1.5,zorro:1.6,lagarto:1.7,rana:1.6,mono:1.5,alien:1.3,rover:1.25,pinguino:1.1,loro:1.4,tucan:1.4})[id]||1); r.g.position.set(hx, F.move==='fly'?5+wr()*3:0, hz); scene.add(r.g);
+      const an={id, F, ...r, home:{x:hx,z:hz}, tx:hx, tz:hz, wait:wr()*3, phase:wr()*10, ang:wr()*6.28, hop:0, x:hx, z:hz};
+      animals.push(an);
+      interactables.push({get x(){return an.g.position.x;}, get z(){return an.g.position.z;}, r:F.move==='fly'?4:2.6, maxY: F.move==='fly'?undefined:3,
+        label:()=>state.animals[id]?'Ver ficha: '+F.n:'Conocer a este '+(F.tipo==='Máquina'||F.tipo==='Ser imaginario'?'ser':'animal'), action:()=>meetAnimal(an)});
+    }
+  });
+}
+function animalBlocked(x,z){
+  if(Math.hypot(x,z)>54) return true;
+  for(const o of obstacles){ if(Math.hypot(x-o.x,z-o.z)<o.r+0.7) return true; }
+  for(const b of boxes){ if(b.bot<1 && Math.abs(x-b.x)<b.hw+0.7 && Math.abs(z-b.z)<b.hd+0.7) return true; }
+  return false;
+}
+function updateFauna(dt, t){
+  for(const a of animals){
+    const g=a.g, F=a.F; a.phase+=dt;
+    if(F.move==='fly'){
+      const R0 = a.id==='dragon'?16:7, h = a.id==='dragon'?13:5.5;
+      a.ang += dt*F.sp/R0; g.position.set(a.home.x+Math.cos(a.ang)*R0, h+Math.sin(a.phase*1.3)*0.6, a.home.z+Math.sin(a.ang)*R0);
+      g.rotation.y = -a.ang; a.legs.forEach((w,i)=>w.rotation.z=(i?-1:1)*Math.sin(a.phase*(a.id==='dragon'?4:12))*0.6);
+      continue;
+    }
+    const dp=Math.hypot(P.x-g.position.x, P.z-g.position.z);
+    let moving=false;
+    if(dp<3.5){ const want=Math.atan2(P.x-g.position.x, P.z-g.position.z); let d=want-g.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d)); g.rotation.y+=d*Math.min(1,dt*4); }
+    else if(a.wait>0){ a.wait-=dt; }
+    else {
+      const dx=a.tx-g.position.x, dz=a.tz-g.position.z, d=Math.hypot(dx,dz);
+      if(d<0.3){ a.wait=1.5+R()*4; const ang=R()*Math.PI*2, rr=R()*8; a.tx=a.home.x+Math.cos(ang)*rr; a.tz=a.home.z+Math.sin(ang)*rr; if(animalBlocked(a.tx,a.tz)){ a.tx=g.position.x; a.tz=g.position.z; } }
+      else {
+        const step=Math.min(d, F.sp*dt*(F.move==='hop'?(a.hop>0?2.2:0):1));
+        const nx=g.position.x+dx/d*step, nz=g.position.z+dz/d*step;
+        if(animalBlocked(nx,nz)){ a.tx=g.position.x; a.tz=g.position.z; }
+        else { g.position.x=nx; g.position.z=nz; moving=step>0; }
+        const face=Math.atan2(dx,dz) + (F.move==='side'?Math.PI/2:0); let df=face-g.rotation.y; df=Math.atan2(Math.sin(df),Math.cos(df)); g.rotation.y+=df*Math.min(1,dt*5);
+        if(F.move==='hop'){ if(a.hop<=0 && R()<dt*2) a.hop=0.5; }
+      }
+    }
+    if(F.move==='hop'){ if(a.hop>0){ a.hop-=dt; g.position.y=Math.sin(Math.max(0,a.hop)/0.5*Math.PI)*0.6; } else g.position.y=0; }
+    const sw=moving?Math.sin(a.phase*(F.move==='side'?14:8)):0;
+    if(a.wheels) a.legs.forEach(w=>w.rotation.x+= moving?dt*5:0);
+    else if(F.move==='waddle'){ g.rotation.z = moving?Math.sin(a.phase*8)*0.12:0; a.legs.forEach((l,i)=>l.rotation.x=(i?1:-1)*sw*0.4); }
+    else a.legs.forEach((l,i)=>l.rotation.x=((i===0||i===3)?1:-1)*sw*0.5);
+    if(a.neck && a.id==='camello') a.neck.rotation.x=0.35+Math.sin(a.phase*1.5)*0.08;
+  }
+}
+function meetAnimal(an){
+  const F=an.F, first=!state.animals[an.id];
+  state.animals[an.id]=1; save(); tones([660,880,990],0.09,'sine',0.04);
+  const seen=FAUNA_IDS.filter(i=>state.animals[i]).length;
+  openModal((first?'¡Conociste: ':'')+F.n+(first?'!':''), `<p class="q" style="margin:0">${esc(F.f)}</p>
+    <dl class="fdl"><dt>Es un</dt><dd>${esc(F.tipo.toLowerCase())}</dd><dt>Vive en</dt><dd>${esc(WORLDS[F.w].name)}</dd></dl>
+    <p class="note">${first?'Lo guardaste en tu álbum. ':''}Álbum de animales y seres: ${seen} de ${FAUNA_IDS.length}. Míralo en tu bolsa (tecla I).</p>`,
+    [{label:'Seguir',fn:closeModal}], F.n+'. Es un '+F.tipo.toLowerCase()+'. '+F.f);
 }
 
 /* ---------- bloques del jugador ---------- */
@@ -1787,7 +1939,8 @@ function updateBag(){
   if(!bag.length){ el.hidden=true; return; }
   const sum=bag.reduce((a,b)=>a+b,0);
   const expr=bag.map((v,i)=> i===0 ? String(v).replace('-','−') : (v<0?' − '+(-v):' + '+v)).join('');
-  el.textContent=`Mochila: ${expr} = ${sum}   ·   Meta: ${numTarget}`; el.hidden=false;
+  el.innerHTML=`<span>Mochila: ${esc(expr)} = ${sum} · Meta: ${numTarget}</span><button type="button" id="dropBtn">Soltar todas (R)</button>`; el.hidden=false;
+  $('#dropBtn').onclick=ev=>{ ev.stopPropagation(); dropGems(true); };
 }
 function dropGems(say){
   if(!bag.length) return; bag=[]; gems.forEach(g=>{g.taken=false; g.obj.visible=true;}); updateBag();
@@ -1800,7 +1953,7 @@ function deliverGems(){
   if(sum===numTarget){ state.stats.numeros.ok++; dropGems(false); bag=[]; updateBag(); gems.forEach(g=>g.obj.visible=false); winCrystal('numeros'); return; }
   state.stats.numeros.err++; save(); sfx.err();
   if(sum>numTarget){ openModal('¡Uy, te pasaste!', `<p class="q">Tu mochila suma <b>${sum}</b> y la meta es <b>${numTarget}</b>.</p><p>Las gemas volverán a su lugar. Prueba otra combinación.</p>`, [{label:'Intentar otra vez',fn:()=>{dropGems(false);closeModal();}}], 'Te pasaste. Tu mochila suma '+sum+' y la meta es '+numTarget+'.'); }
-  else { openModal('Todavía no alcanza', `<p class="q">Tu mochila suma <b>${sum}</b> y la meta es <b>${numTarget}</b>.</p><p>¿Cuánto te falta? Busca una gema con ese número.</p>`, [{label:'Seguir buscando',fn:closeModal}], 'Todavía no alcanza. Tu mochila suma '+sum+'. ¿Cuánto te falta para '+numTarget+'?'); }
+  else { openModal('Todavía no alcanza', `<p class="q">Tu mochila suma <b>${sum}</b> y la meta es <b>${numTarget}</b>.</p><p>¿Cuánto te falta? Busca una gema con ese número.</p>`, [{label:'Soltar todas y empezar de nuevo',cls:'ghost',fn:()=>{ dropGems(false); closeModal(); }},{label:'Seguir buscando',fn:closeModal}], 'Todavía no alcanza. Tu mochila suma '+sum+'. ¿Cuánto te falta para '+numTarget+'?'); }
 }
 
 /* ---------- RETO: Experimentos (flota o se hunde) ---------- */
@@ -2142,6 +2295,7 @@ function openHelp(){
   <li>Presiona <kbd>B</kbd> para construir con bloques en toda la isla.</li>
   <li>Presiona <kbd>C</kbd> para cambiar tu personaje.</li>
   <li>Con la mochila cohete, presiona <kbd>F</kbd> para dar una voltereta en el aire.</li>
+  <li>En cada mundo hay animales y seres. Acércate y presiona E para conocerlos.</li>
   <li>Los portales de colores de la plaza te llevan a otros mundos: camina hacia el remolino.</li>
   <li>Puedes subirte a los muros de la mina, al techo del templo y a los escalones. Arriba hay cofres con monedas.</li>
   <li>Cerca de cada laboratorio hay elementos de la tabla periódica. Júntalos y fabrica moléculas.</li>
@@ -2181,6 +2335,7 @@ function openParent(){
     <div class="prz">${[0,1,2,3].map(i=>{ const p=(state.prizes||[])[i]||{n:'',c:''}; return `<input id="pzn${i}" aria-label="Premio ${i+1}" placeholder="Premio ${i+1}" value="${esc(p.n||'')}"><input id="pzc${i}" aria-label="Monedas premio ${i+1}" inputmode="numeric" placeholder="Monedas" value="${p.c||''}">`; }).join('')}</div>
     <h3 style="margin:6px 0 0;font-family:var(--display)">Canjes por entregar</h3>
     ${(state.redeems||[]).filter(r=>!r.done).length ? (state.redeems||[]).map((r,i)=>r.done?'':`<div class="pend"><span><b>${esc(r.n)}</b> · ${r.c} monedas · ${new Date(r.at).toLocaleDateString('es-CO')}</span><button class="btn small ghost" type="button" data-done="${i}">Entregado</button></div>`).join('') : '<p class="note">No hay canjes pendientes.</p>'}
+    <p class="note">Álbum de animales: ${FAUNA_IDS.filter(i=>state.animals[i]).length} de ${FAUNA_IDS.length}</p>
     <p class="note">Laboratorio: ${EL_IDS.filter(s=>state.found[s]).length} de ${EL_IDS.length} elementos · ${MOL_IDS.filter(m=>state.mols[m]).length} de ${MOL_IDS.length} moléculas · aciertos ${state.stats.lab.ok}, errores ${state.stats.lab.err}</p>
     <p class="note">Cristales: ${CRYS_IDS.reduce((a,id)=>a+(state.inv[id]||0),0)} · Monedas: ${state.coins} · ${esc(PICKS[state.pick].n)}</p>
     <p class="note">El progreso se guarda en este navegador. Si se alcanzó el límite de hoy, "Dar 15 min más" lo extiende.</p>`,
@@ -2264,7 +2419,8 @@ function update(dt){
   if(P.y<=ground){ if(surfBounce && P.vy<-2){ P.y=ground; P.vy=surfBounce; sfx.place(); if(!state.seenIntro.bounce){ state.seenIntro.bounce=1; toast('¡Hongo saltarín!',['Salta sobre los hongos para llegar más alto.'],6000); } } else { P.y=ground; P.vy=0; } }
   airborne = P.y>ground+0.05;
   // gemas
-  if(!state.done.numeros) for(const g of gems){ if(!g.taken && Math.hypot(g.obj.position.x-P.x, g.obj.position.z-P.z)<1.25 && P.y<2){ g.taken=true; g.obj.visible=false; bag.push(g.v); updateBag(); sfx.collect(); } }
+  if(!state.done.numeros) for(const g of gems){ if(!g.taken && Math.hypot(g.obj.position.x-P.x, g.obj.position.z-P.z)<1.25 && P.y<2){ g.taken=true; g.obj.visible=false; bag.push(g.v); updateBag(); sfx.collect();
+    if(gems.every(q=>q.taken) && bag.reduce((a,b)=>a+b,0)!==numTarget) toast('Ya recogiste todas las gemas',['La suma no da la meta.','Presiona R o el botón rojo de arriba para soltarlas y probar otra combinación.'],8000); } }
   // intro de zona
   for(const id of ZONE_IDS){ const Z=ZONES[id]; const k=id+':'+state.level+':'+state.world;
     if(!state.done[id] && !state.seenIntro[k] && Math.hypot(P.x-Z.x,P.z-Z.z)<15){ state.seenIntro[k]=1; save(); toast(...zoneIntro[id]); } }
@@ -2293,6 +2449,7 @@ function loop(t){
   }
   for(const g of gems) if(g.obj.visible){ g.gem.rotation.y=t*0.002; g.gem.position.y=1+Math.sin(t*0.003+g.obj.position.x)*0.15; }
   for(const a of animated) a(t);
+  if(!modalOpen && !editorOpen) updateFauna(dt, t);
   renderer.render(scene,camera);
 }
 
