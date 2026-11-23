@@ -302,7 +302,7 @@ const ZONE_IDS = ['numeros','patrones','bloques','robot'];
 function defaultState(){
   return { name:'', level:1, stars:0,
     done:{numeros:false,patrones:false,bloques:false,robot:false},
-    stats:{numeros:{ok:0,err:0},patrones:{ok:0,err:0},bloques:{ok:0,err:0},robot:{ok:0,err:0},lab:{ok:0,err:0}},
+    stats:{numeros:{ok:0,err:0},patrones:{ok:0,err:0},bloques:{ok:0,err:0},robot:{ok:0,err:0},lab:{ok:0,err:0},album:{ok:0,err:0}},
     settings:{limit:60, breakEvery:15, sound:true},
     today:{date:todayStr(), secs:0, extra:0}, totalSecs:0, seenIntro:{}, robotSeen:[], blocks:[], world:'isla', worlds:null, atoms:{}, found:{}, mols:{}, animals:{}, lastMol:null, inv:{}, coins:0, pick:0, owned:{}, redeems:[],
     prizes:[{n:'Elegir el postre',c:30},{n:'Ir al parque con papá',c:60},{n:'Escoger la película del fin de semana',c:100}] };
@@ -314,15 +314,31 @@ function save(){ try{ localStorage.setItem(STORE, JSON.stringify(state)); }catch
 
 /* ---------- mundos ---------- */
 const WORLDS = {
-  isla:    {name:'Isla Verde',      need:0, blurb:'Árboles, playa y mar.', sky:0x9fd8f5, fogN:45, fogF:150, ground:0x68b257, rim:0xf1d8a0, sea:0x3fa7d6, plaza:0xd9d3c3, path:0xe6cf95, hemiG:0x9a9c86, flora:'arbol',  clouds:true, g:20, jump:7.2, portal:'#2bb673'},
-  desierto:{name:'Desierto Dorado', need:1, blurb:'Cactus y pirámides gigantes.', sky:0xf4d6a6, fogN:50, fogF:160, ground:0xe2bb72, rim:0xcf9f58, sea:0x2fb5c4, plaza:0xd8b98a, path:0xc8925a, hemiG:0xb08a5a, flora:'cactus', clouds:true, g:20, jump:7.2, portal:'#f4a300'},
-  nieve:   {name:'Valle Nevado',    need:2, blurb:'Nieve y hielo que resbala.', sky:0xcfe3f2, fogN:40, fogF:140, ground:0xf2f6fb, rim:0xd3e1ee, sea:0x6fb2d9, plaza:0xc9d8e6, path:0xb7cde0, hemiG:0xb9c9d8, flora:'pino', clouds:true, snow:true, ice:true, g:20, jump:7.2, portal:'#7fd3ff'},
-  luna:    {name:'Base Lunar',      need:3, blurb:'Poca gravedad: saltos gigantes.', sky:0x0b1030, fogN:70, fogF:230, ground:0x6c717d, rim:0x585d67, sea:0x0b1030, plaza:0xc6cad2, path:0x868c97, hemiG:0x50566a, flora:'roca', stars:true, g:6.5, jump:6.8, portal:'#8a5cf6'},
-  selva:   {name:'Selva Tropical',  need:4, blurb:'Hongos saltarines y experimentos con agua.', sky:0xbfe8cf, fogN:35, fogF:125, ground:0x3e9a4c, rim:0x8a6a45, sea:0x2a9d8f, plaza:0xc2b28a, path:0xa4844f, hemiG:0x5b7f3a, flora:'selva', clouds:true, g:20, jump:7.2, portal:'#1f9e5a',
+  isla:    {name:'Isla Verde',      need:0, blurb:'Árboles, playa y mar.', sky:0x9fd8f5, fogN:45, fogF:150, ground:0x68b257, rim:0xf1d8a0, sea:0x3fa7d6, plaza:0xd9d3c3, path:0xe6cf95, hemiG:0x9a9c86, flora:'arbol',  clouds:true, g:20, jump:7.2, portal:'#2bb673', gms:9.8},
+  desierto:{name:'Desierto Dorado', need:1, blurb:'Cactus y pirámides gigantes.', sky:0xf4d6a6, fogN:50, fogF:160, ground:0xe2bb72, rim:0xcf9f58, sea:0x2fb5c4, plaza:0xd8b98a, path:0xc8925a, hemiG:0xb08a5a, flora:'cactus', clouds:true, g:20, jump:7.2, portal:'#f4a300', gms:9.8},
+  nieve:   {name:'Valle Nevado',    need:2, blurb:'Nieve y hielo que resbala.', sky:0xcfe3f2, fogN:40, fogF:140, ground:0xf2f6fb, rim:0xd3e1ee, sea:0x6fb2d9, plaza:0xc9d8e6, path:0xb7cde0, hemiG:0xb9c9d8, flora:'pino', clouds:true, snow:true, ice:true, g:20, jump:7.2, portal:'#7fd3ff', gms:9.8},
+  luna:    {name:'Base Lunar',      need:3, blurb:'Poca gravedad: saltos gigantes.', sky:0x0b1030, fogN:70, fogF:230, ground:0x6c717d, rim:0x585d67, sea:0x0b1030, plaza:0xc6cad2, path:0x868c97, hemiG:0x50566a, flora:'roca', stars:true, g:20*1.6/9.8, jump:7.2, portal:'#8a5cf6', gms:1.6, space:true, fact:'No tiene aire, por eso el cielo es negro aunque sea de día.'},
+  selva:   {name:'Selva Tropical',  need:4, blurb:'Hongos saltarines y experimentos con agua.', sky:0xbfe8cf, fogN:35, fogF:125, ground:0x3e9a4c, rim:0x8a6a45, sea:0x2a9d8f, plaza:0xc2b28a, path:0xa4844f, hemiG:0x5b7f3a, flora:'selva', clouds:true, g:20, jump:7.2, portal:'#1f9e5a', gms:9.8,
             zones:{numeros:'exp'}, zoneNames:{numeros:'Experimentos'}},
-  castillo:{name:'Reino del Castillo', need:5, blurb:'Un castillo para escalar y torres de acertijos.', sky:0xd3c4ef, fogN:45, fogF:150, ground:0x77b26a, rim:0x9a9aa6, sea:0x4a6fa5, plaza:0xb9b2a3, path:0xa9a296, hemiG:0x8a8aa0, flora:'arbol', clouds:true, g:20, jump:7.2, portal:'#e63946',
-            zones:{patrones:'hanoi'}, zoneNames:{patrones:'Torres'}, castle:true}
+  castillo:{name:'Reino del Castillo', need:5, blurb:'Un castillo para escalar y torres de acertijos.', sky:0xd3c4ef, fogN:45, fogF:150, ground:0x77b26a, rim:0x9a9aa6, sea:0x4a6fa5, plaza:0xb9b2a3, path:0xa9a296, hemiG:0x8a8aa0, flora:'arbol', clouds:true, g:20, jump:7.2, portal:'#e63946', gms:9.8,
+            zones:{patrones:'hanoi'}, zoneNames:{patrones:'Torres'}, castle:true},
+  mercurio:{name:'Mercurio', need:3, blurb:'El planeta más cercano al Sol.', sky:0x07080f, fogN:80, fogF:240, ground:0x8a8580, rim:0x6e6a66, sea:0x07080f, plaza:0xb7b2ab, path:0x9c968f, hemiG:0x5a5650, flora:'roca', stars:true, bigSun:true, portal:'#b7b2ab', gms:3.7, space:true, planet:true, crys:'luna',
+            fact:'Es el planeta más cercano al Sol. No tiene aire, por eso su cielo es negro.'},
+  venus:   {name:'Venus', need:4, blurb:'El planeta más caliente.', sky:0xd9a35a, fogN:25, fogF:95, ground:0xa8683a, rim:0x8a5530, sea:0xc98a45, plaza:0xc9a27a, path:0xb38458, hemiG:0x8a5530, flora:'roca', portal:'#e6b35a', gms:8.9, space:true, planet:true, crys:'luna',
+            fact:'Es el planeta más caliente: unos 464 °C. Sus nubes gruesas no dejan ver el Sol. Por eso aquí estás dentro de una base protegida.'},
+  marte:   {name:'Marte', need:3, blurb:'El planeta rojo.', sky:0xd9a07a, fogN:50, fogF:170, ground:0xb5552e, rim:0x8f4325, sea:0x7a3a22, plaza:0xc98a6a, path:0xa65a3a, hemiG:0x7a3a22, flora:'roca', portal:'#d9623b', gms:3.7, space:true, planet:true, crys:'luna',
+            fact:'Se ve rojo por el óxido de hierro de su suelo, como una tierra oxidada.'},
+  jupiter: {name:'Júpiter', need:4, blurb:'El planeta más grande.', sky:0xd9b38c, fogN:45, fogF:160, ground:0x9aa3b2, rim:0x6d7380, sea:0xc98f5a, plaza:0xc7cdda, path:0xaab2c0, hemiG:0x8a6a4a, flora:'none', clouds:true, portal:'#e0a26a', gms:23.1, space:true, planet:true, gas:true, crys:'luna',
+            fact:'Es el planeta más grande. No tiene suelo firme: estás en una estación que flota en sus nubes.'},
+  saturno: {name:'Saturno', need:5, blurb:'El planeta de los anillos.', sky:0xe6d3a3, fogN:60, fogF:220, ground:0x9aa3b2, rim:0x6d7380, sea:0xd9c08a, plaza:0xc7cdda, path:0xaab2c0, hemiG:0x9a8a6a, flora:'none', rings:true, portal:'#e6d08a', gms:9.0, space:true, planet:true, gas:true, crys:'luna',
+            fact:'Sus anillos están hechos de pedazos de hielo y roca. Es enorme, pero su gravedad se parece a la de la Tierra. Tampoco tiene suelo: estás en una estación flotante.'},
+  urano:   {name:'Urano', need:5, blurb:'El planeta que gira acostado.', sky:0x9fe3e8, fogN:50, fogF:180, ground:0x9aa3b2, rim:0x6d7380, sea:0x7fd3d8, plaza:0xc7cdda, path:0xaab2c0, hemiG:0x5aa6ab, flora:'none', clouds:true, portal:'#7fd3d8', gms:8.7, space:true, planet:true, gas:true, crys:'luna',
+            fact:'Gira acostado de lado, como un balón que rueda. Su color azul verdoso viene del gas metano.'},
+  neptuno: {name:'Neptuno', need:6, blurb:'El planeta más lejano del Sol.', sky:0x3a62c9, fogN:40, fogF:150, ground:0x9aa3b2, rim:0x6d7380, sea:0x2a4aa8, plaza:0xc7cdda, path:0xaab2c0, hemiG:0x2a4aa8, flora:'none', clouds:true, portal:'#4a7ae0', gms:11.0, space:true, planet:true, gas:true, crys:'luna',
+            fact:'Es el planeta más lejano del Sol y tiene los vientos más fuertes del sistema solar.'}
 };
+Object.values(WORLDS).forEach(w=>{ w.g = 20*w.gms/9.8; w.jump = 7.2; });
+const gTxt = v => v.toFixed(1).replace('.',',');
 const WORLD_IDS = Object.keys(WORLDS);
 const emptyDone = () => ({numeros:false,patrones:false,bloques:false,robot:false});
 state.animals = state.animals||{}; state.atoms = state.atoms||{}; state.found = state.found||{}; state.mols = state.mols||{};
@@ -444,10 +460,11 @@ function buildWorld(){
   const nearZone=(x,z,d)=>Object.values(ZONES).some(Z=>Math.hypot(x-Z.x,z-Z.z)<d);
   for(let i=0;i<220 && obstacles.length<70;i++){
     const a=wr()*Math.PI*2, r=13+wr()*42, x=Math.cos(a)*r, z=Math.sin(a)*r;
-    if(nearZone(x,z,15) || Math.hypot(x-MINE_C.x,z-MINE_C.z)<11.5 || Math.hypot(x-8,z-8)<4 || Math.hypot(x-14,z-12.5)<9.5 || PORTAL_SLOTS.some(([qx,qz])=>Math.hypot(x-qx,z-qz)<3.6) || boxes.some(b=>Math.abs(x-b.x)<b.hw+2.5 && Math.abs(z-b.z)<b.hd+2.5)) continue;
+    if(nearZone(x,z,15) || Math.hypot(x-MINE_C.x,z-MINE_C.z)<11.5 || Math.hypot(x-8,z-8)<4 || Math.hypot(x-14,z-12.5)<9.5 || PORTAL_SLOTS.some(([qx,qz])=>Math.hypot(x-qx,z-qz)<3.6) || Math.hypot(x-SPACE_C.x,z-SPACE_C.z)<12.5 || boxes.some(b=>Math.abs(x-b.x)<b.hw+2.5 && Math.abs(z-b.z)<b.hd+2.5)) continue;
     if((Math.abs(x)<4.5 && Math.abs(z)<32) || (Math.abs(z)<4.5 && Math.abs(x)<32)) continue;
     if(obstacles.some(o=>Math.hypot(o.x-x,o.z-z)<o.r+3.2)) continue;
     const s=0.8+wr()*0.7;
+    if(T.flora==='none') continue;
     if(wr()<0.82) plantFlora(x,z,s,wr);
     else {
       const rk=mesh(new THREE.DodecahedronGeometry(0.9*s,0), M(T.flora==='cactus'?0xc0714a:T.flora==='pino'?0xeef3f8:0x9aa1ad), x,0.4*s,z); rk.rotation.set(wr(),wr(),wr());
@@ -510,13 +527,13 @@ function plantFlora(x,z,s,wr){
 function buildDecor(wr){
   const ob=(x,z,r)=>obstacles.push({x,z,r});
   if(T.flora==='selva'){
-    [[-22,20,1.0],[-27,15,1.3],[-18,26,1.1],[-30,23,1.5],[-24,30,1.2],[-34,30,1.7]].forEach(([x,z,top])=>{
+    [[-22,-20,1.0],[-27,-15,1.3],[-18,-26,1.1],[-30,-23,1.5],[-24,-30,1.2],[-34,-30,1.7]].forEach(([x,z,top])=>{
       mesh(new THREE.CylinderGeometry(0.45,0.6,top,10), M(0xf3efe6), x,top/2,z);
       const cap=mesh(new THREE.SphereGeometry(1.5,20,12,0,Math.PI*2,0,Math.PI/2), M(0xe63946), x,top-0.05,z); cap.scale.y=0.55;
       for(let k=0;k<6;k++){ const a=k*1.05+wr(), r=0.9; mesh(new THREE.SphereGeometry(0.16,8,6), M(0xffffff), x+Math.cos(a)*r,top+0.45,z+Math.sin(a)*r); }
       obstacles.push({x,z,r:1.45,top:top+0.55,bounce:13});
     });
-    const lg=mesh(new THREE.CylinderGeometry(0.5,0.5,7,10), M(0x7a5233), -30,0.5,-22); lg.rotation.z=Math.PI/2; lg.rotation.y=0.5; ob(-30,-22,1.2);
+    const lg=mesh(new THREE.CylinderGeometry(0.5,0.5,7,10), M(0x7a5233), -41,0.5,-10); lg.rotation.z=Math.PI/2; lg.rotation.y=0.5; ob(-41,-10,1.2);
   }
   if(T.castle){
     const cx=-32, cz=-32, st=M(0x9a9aa6), dk=M(0x7d7d89);
@@ -534,7 +551,7 @@ function buildDecor(wr){
     makeChest('torre', cx+5.6, cz+5.6, 6.2, 6);
   }
   if(T.flora==='cactus'){
-    [[34,-34,7],[-38,32,6],[-15,-47,4.5]].forEach(([x,z,s])=>{ const p=mesh(new THREE.ConeGeometry(s,s*1.1,4), M(0xd9b06a), x,s*0.55,z); p.rotation.y=Math.PI/4; ob(x,z,s*0.72); });
+    [[34,-34,7],[-44,14,6],[-15,-47,4.5]].forEach(([x,z,s])=>{ const p=mesh(new THREE.ConeGeometry(s,s*1.1,4), M(0xd9b06a), x,s*0.55,z); p.rotation.y=Math.PI/4; ob(x,z,s*0.72); });
     const oa=mesh(new THREE.CylinderGeometry(4,4,0.06,24), M(0x2fb5c4), -30,0.03,-30);
     for(let i=0;i<3;i++){ const a=i*2.1, x=-30+Math.cos(a)*5, z=-30+Math.sin(a)*5;
       mesh(new THREE.CylinderGeometry(0.22,0.3,4,7), M(0x9a6b42), x,2,z);
@@ -544,7 +561,7 @@ function buildDecor(wr){
   if(T.flora==='pino'){
     const ig=mesh(new THREE.SphereGeometry(4,20,12,0,Math.PI*2,0,Math.PI/2), M(0xffffff), 30,0,-30); ob(30,-30,4.2);
     mesh(new THREE.BoxGeometry(2,2,2), M(0x9fb6c8), 27.6,1,-27.6).rotation.y=Math.PI/4;
-    const sx=-28, sz=28;
+    const sx=-41, sz=9;
     mesh(new THREE.SphereGeometry(1.2,14,10), M(0xffffff), sx,1.1,sz); mesh(new THREE.SphereGeometry(0.85,14,10), M(0xffffff), sx,2.75,sz); mesh(new THREE.SphereGeometry(0.6,14,10), M(0xffffff), sx,3.95,sz);
     const nose=mesh(new THREE.ConeGeometry(0.12,0.6,8), M(0xff7b00), sx+0.62,3.95,sz); nose.rotation.z=-Math.PI/2;
     mesh(new THREE.CylinderGeometry(0.5,0.5,0.6,12), M(0x1b2445), sx,4.6,sz); ob(sx,sz,1.3);
@@ -562,6 +579,10 @@ function buildDecor(wr){
     const earth=new THREE.Mesh(new THREE.SphereGeometry(16,32,20), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(ecv), fog:false})); earth.position.set(110,80,-170); scene.add(earth);
     animated.push(t=>earth.rotation.y=t*0.00005);
   }
+  if(T.bigSun){ const sun=new THREE.Mesh(new THREE.SphereGeometry(30,24,16), new THREE.MeshBasicMaterial({color:0xfff3c4, fog:false})); sun.position.set(-150,90,-160); scene.add(sun); }
+  if(T.rings){ const rg=new THREE.Mesh(new THREE.RingGeometry(170,260,96), new THREE.MeshBasicMaterial({color:0xd9c08a, side:THREE.DoubleSide, transparent:true, opacity:0.6, fog:false})); rg.position.set(0,-30,0); rg.rotation.x=Math.PI/2-0.25; scene.add(rg);
+    const rg2=new THREE.Mesh(new THREE.RingGeometry(265,300,96), new THREE.MeshBasicMaterial({color:0xbfa77a, side:THREE.DoubleSide, transparent:true, opacity:0.45, fog:false})); rg2.position.copy(rg.position); rg2.rotation.copy(rg.rotation); scene.add(rg2); }
+  if(T.gas){ for(let i=0;i<14;i++){ const a=wr()*Math.PI*2, r=70+wr()*60; const c=mesh(new THREE.SphereGeometry(8+wr()*8,10,8), new THREE.MeshLambertMaterial({color:T.sea, transparent:true, opacity:0.85}), Math.cos(a)*r,-6+wr()*4,Math.sin(a)*r); c.scale.y=0.35; } }
   if(T.stars){
     const n=900, pos=new Float32Array(n*3);
     for(let i=0;i<n;i++){ const u=wr()*2-1, a=wr()*Math.PI*2, r=280, q=Math.sqrt(1-u*u); pos[i*3]=Math.cos(a)*q*r; pos[i*3+1]=Math.abs(u)*r*0.9+10; pos[i*3+2]=Math.sin(a)*q*r; }
@@ -580,9 +601,21 @@ function buildDecor(wr){
 }
 const PORTAL_SLOTS=[[-6.5,-12.5],[-10.6,-9.6],[-13.2,-5.6],[-13.2,5.6],[-10.6,9.6],[-6.5,12.5]];
 const portals=[];
+const SPACE_C={x:-27,z:27};
 function buildPortals(){
-  WORLD_IDS.filter(id=>id!==state.world).forEach((id,i)=>{
-    const [x,z]=PORTAL_SLOTS[i]; const Wd=WORLDS[id], open=worldOpen(id); const rot=Math.atan2(-x,-z);
+  WORLD_IDS.filter(id=>id!==state.world && !WORLDS[id].space).forEach((id,i)=>{ const [x,z]=PORTAL_SLOTS[i]; makePortal(id,x,z,Math.atan2(-x,-z)); });
+  const sp=WORLD_IDS.filter(id=>id!==state.world && WORLDS[id].space), face=Math.atan2(-SPACE_C.x,-SPACE_C.z), n=sp.length;
+  sp.forEach((id,k)=>{ const a=face+0.75+k*(Math.PI*2-1.5)/Math.max(1,n-1); const x=SPACE_C.x+Math.sin(a)*8.6, z=SPACE_C.z+Math.cos(a)*8.6; makePortal(id,x,z,Math.atan2(SPACE_C.x-x,SPACE_C.z-z)); });
+  // cohete central y letrero
+  const rk=new THREE.Group(); rk.position.set(SPACE_C.x,0,SPACE_C.z); scene.add(rk);
+  mesh(new THREE.CylinderGeometry(0.7,0.7,3.2,16), M(0xf4f4f4), 0,2.1,0, rk); mesh(new THREE.ConeGeometry(0.7,1.3,16), M(0xe63946), 0,4.35,0, rk);
+  mesh(new THREE.CircleGeometry(0.28,16), new THREE.MeshBasicMaterial({color:0x7fe7ff}), 0,2.8,0.71, rk);
+  for(let k=0;k<3;k++){ const f=mesh(new THREE.BoxGeometry(0.08,0.9,0.7), M(0xe63946), Math.sin(k*2.09)*0.75,0.75,Math.cos(k*2.09)*0.75, rk); f.rotation.y=k*2.09; }
+  obstacles.push({x:SPACE_C.x,z:SPACE_C.z,r:1.0});
+  const lb=makeLabel('PUERTO ESPACIAL',{bg:'#1b2445',fg:'#ffffff',w:4.6}); lb.position.set(SPACE_C.x,6.3,SPACE_C.z); scene.add(lb);
+}
+function makePortal(id,x,z,rot){
+  { const Wd=WORLDS[id], open=worldOpen(id);
     const g=new THREE.Group(); g.position.set(x,0,z); g.rotation.y=rot; scene.add(g);
     mesh(new THREE.TorusGeometry(1.7,0.3,10,36), new THREE.MeshLambertMaterial({color:open?Wd.portal:'#8a8f9c', emissive:open?Wd.portal:'#000000', emissiveIntensity:0.35}), 0,2.05,0, g);
     const cv=document.createElement('canvas'); cv.width=cv.height=256; const tex=new THREE.CanvasTexture(cv);
@@ -596,12 +629,12 @@ function buildPortals(){
       else { c.fillStyle='#3c4560'; c.fillRect(-128,-128,256,256); c.fillStyle='#c7cdda'; c.fillRect(-26,-6,52,44); c.lineWidth=10; c.strokeStyle='#c7cdda'; c.beginPath(); c.arc(0,-8,20,Math.PI,0); c.stroke(); }
       c.restore(); tex.needsUpdate=true; };
     draw(0); if(open) animated.push(draw);
-    const lb=makeLabel(open?Wd.name.toUpperCase():Wd.name+' · '+Wd.need+'★',{bg:open?Wd.portal:'#c7cdda',fg:'#1b2445',w:4.4,font:56}); lb.position.set(x,4.5,z); scene.add(lb);
+    const lb=makeLabel(open?Wd.name.toUpperCase()+(Wd.space?' · '+gTxt(Wd.gms):''):Wd.name+' · '+Wd.need+'★',{bg:open?Wd.portal:'#c7cdda',fg:'#1b2445',w:4.4,font:56}); lb.position.set(x,4.5,z); scene.add(lb);
     const sx=Math.cos(rot)*1.75, sz=-Math.sin(rot)*1.75;
     obstacles.push({x:x+sx,z:z+sz,r:0.35},{x:x-sx,z:z-sz,r:0.35});
     portals.push({id,x,z,open,rot});
-    interactables.push({x,z,r:3.2, label:()=>open?'Entra al remolino para ir a '+Wd.name:Wd.name+': se abre con '+Wd.need+' estrellas', action:()=>open?warpTo(id):openWorlds()});
-  });
+    interactables.push({x,z,r:3.2, label:()=>open?'Entra al remolino para ir a '+Wd.name+(Wd.space?' (gravedad '+gTxt(Wd.gms)+')':''):Wd.name+': se abre con '+Wd.need+' estrellas', action:()=>open?warpTo(id):openWorlds()});
+  }
 }
 let portalMsgT=0;
 function checkPortals(dt){
@@ -749,7 +782,7 @@ const CRYSTALS = {
   onix:{n:'Ónix',pl:'ónix',css:'#3a3a46',hex:0x3a3a46,w:'castillo',t:2}
 };
 const CRYS_IDS = Object.keys(CRYSTALS);
-const worldCrys = w => CRYS_IDS.filter(id=>CRYSTALS[id].w===w).sort((a,b)=>CRYSTALS[a].t-CRYSTALS[b].t);
+const worldCrys = w => CRYS_IDS.filter(id=>CRYSTALS[id].w===((WORLDS[w]&&WORLDS[w].crys)||w)).sort((a,b)=>CRYSTALS[a].t-CRYSTALS[b].t);
 const TIERS = [{n:'común',hard:3,min:3,max:4,v:1,pick:0},{n:'poco común',hard:5,min:2,max:3,v:3,pick:1},{n:'rara',hard:8,min:1,max:2,v:10,pick:2}];
 const PICKS = [
   {n:'Pico de madera',power:1,hex:0x9a6b42},
@@ -770,7 +803,7 @@ const SHOP = [
   {id:'bloques_oro',n:'Bloques de oro',d:'Bloques dorados para construir. Se pagan con átomos de oro del laboratorio.',cost:{'at:Au':3}},
   {id:'bloques_plata',n:'Bloques de plata',d:'Bloques plateados para construir. Se pagan con átomos de plata.',cost:{'at:Ag':3}}
 ];
-const ROCK = {isla:0x8f96a3, desierto:0xb4764f, nieve:0x9fb0c2, luna:0x5d6270, selva:0x6b7a5a, castillo:0x8f8f9c};
+const ROCK = {isla:0x8f96a3, desierto:0xb4764f, nieve:0x9fb0c2, luna:0x5d6270, selva:0x6b7a5a, castillo:0x8f8f9c, mercurio:0x6e6a66, venus:0x8a5530, marte:0x8f4325, jupiter:0x8a6a4a, saturno:0x9a8a6a, urano:0x5aa6ab, neptuno:0x3a5ab8};
 const RESPAWN_MS = 120000;
 const MINE_C = {x:28, z:28};
 const nodes = [];
@@ -956,11 +989,11 @@ function updatePet(dt, t){
 
 /* bolsa */
 function openBag(){
-  const groups = WORLD_IDS.map(w=>{
+  const groups = WORLD_IDS.filter(w=>!WORLDS[w].crys).map(w=>{
     const open = worldOpen(w);
     return `<div class="bag-world"><h3>${esc(WORLDS[w].name)}</h3><div class="bag-row">${worldCrys(w).map(id=>{ const C=CRYSTALS[id], n=state.inv[id]||0;
       return `<div class="bag-item ${n?'':'zero'}">${gemSVG(open?C.css:'#cfd5e2',34)}<span>${open?esc(C.n):'???'}</span><b>${n}</b></div>`; }).join('')}</div></div>`; }).join('');
-  openModal('Tu bolsa', `<div class="bag-top"><span>${coinSVG(30)} <b>${state.coins}</b> monedas</span><span class="tag">${esc(PICKS[state.pick].n)}</span></div>${groups}${EL_IDS.some(s=>state.found[s])?`<div class="bag-world"><h3>Átomos</h3><div class="costs">${EL_IDS.filter(s=>state.found[s]).map(s=>`<span class="cost ok">${elemTile(s,24)} <b>${state.atoms[s]||0}</b></span>`).join('')}</div></div>`:''}<div class="bag-world"><h3>Álbum de animales y seres · ${FAUNA_IDS.filter(i=>state.animals[i]).length} de ${FAUNA_IDS.length}</h3><div class="costs">${FAUNA_IDS.map(i=>`<span class="cost ${state.animals[i]?'ok':''}">${state.animals[i]?esc(FAUNA[i].n):'???'}</span>`).join('')}</div></div><p class="note">Cristal común = 1 moneda · poco común = 3 · raro = 10. Véndelos o cámbialos con el Joyero de la plaza.</p>`, [{label:'Cerrar',fn:closeModal}], 'Tu bolsa. Tienes '+state.coins+' monedas.');
+  openModal('Tu bolsa', `<div class="bag-top"><span>${coinSVG(30)} <b>${state.coins}</b> monedas</span><span class="tag">${esc(PICKS[state.pick].n)}</span></div>${groups}${EL_IDS.some(s=>state.found[s])?`<div class="bag-world"><h3>Átomos</h3><div class="costs">${EL_IDS.filter(s=>state.found[s]).map(s=>`<span class="cost ok">${elemTile(s,24)} <b>${state.atoms[s]||0}</b></span>`).join('')}</div></div>`:''}<div class="bag-world"><h3>Álbum de animales y seres · ${FAUNA_IDS.filter(i=>state.animals[i]).length} de ${FAUNA_IDS.length}</h3><div class="costs">${FAUNA_IDS.map(i=>`<span class="cost ${state.animals[i]?'ok':''}">${state.animals[i]?esc(FAUNA[i].n):'???'}</span>`).join('')}</div></div><p class="note">Cristal común = 1 moneda · poco común = 3 · raro = 10. Véndelos o cámbialos con el Joyero de la plaza.</p>`, [{label:'Organizar animales',cls:'ghost',fn:openAlbumSort},{label:'Cerrar',fn:closeModal}], 'Tu bolsa. Tienes '+state.coins+' monedas.');
 }
 
 /* Joyero */
@@ -1060,12 +1093,19 @@ const ELEMENTS = {
   P:{n:'Fósforo',z:15,m:31,ex:'30,974',cat:'nometal',css:'#ff8000',r:0.44,f:'Se usa para fabricar los fósforos que encienden fuego.',w:'selva'},
   Zn:{n:'Zinc',z:30,m:65,ex:'65,38',cat:'metal',css:'#7d80b0',r:0.46,f:'Protege al hierro para que no se oxide.',w:'castillo'},
   Sn:{n:'Estaño',z:50,m:119,ex:'118,71',cat:'metal',css:'#9aa0a8',r:0.48,f:'Muchas latas de comida están cubiertas de estaño.',w:'castillo'},
+  Li:{n:'Litio',z:3,m:7,ex:'6,94',cat:'metal',css:'#e0a0ff',r:0.42,f:'Las baterías de muchos celulares usan litio.',w:'neptuno'},
+  Ne:{n:'Neón',z:10,m:20,ex:'20,180',cat:'gas',css:'#ff6a3d',r:0.34,f:'Los letreros de neón brillan de color rojo anaranjado.',w:'jupiter',gas:1},
+  Ar:{n:'Argón',z:18,m:40,ex:'39,95',cat:'gas',css:'#b48cff',r:0.4,f:'Casi el 1 % del aire que respiras es argón. El aire de Marte también tiene un poquito.',w:'marte',gas:1},
+  Ti:{n:'Titanio',z:22,m:48,ex:'47,867',cat:'metal',css:'#b9c2cc',r:0.46,f:'Es fuerte y liviano: se usa en aviones y bicicletas.',w:'urano'},
+  Ni:{n:'Níquel',z:28,m:59,ex:'58,693',cat:'metal',css:'#a8b58f',r:0.46,f:'Muchas monedas tienen níquel. El centro de Mercurio es de hierro y níquel.',w:'mercurio'},
+  Pt:{n:'Platino',z:78,m:195,ex:'195,08',cat:'metal',css:'#e4e4e9',r:0.48,f:'Es más raro que el oro y tampoco se oxida.',w:'saturno'},
+  Pb:{n:'Plomo',z:82,m:207,ex:'207,2',cat:'metal',css:'#6f7684',r:0.5,f:'Es muy pesado. En Venus hace tanto calor que el plomo se derretiría.',w:'venus'},
   I:{n:'Yodo',z:53,m:127,ex:'126,90',cat:'nometal',css:'#6b2fa8',r:0.48,f:'Se le agrega a la sal de cocina para cuidar tu salud.',w:'castillo'}
 };
 const EL_IDS = Object.keys(ELEMENTS);
 const CAT_N = {metal:'Metal', nometal:'No metal', gas:'Gas'};
-const PT_POS = {H:[1,1],He:[1,18],C:[2,14],N:[2,15],O:[2,16],Na:[3,1],Mg:[3,2],Al:[3,13],S:[3,16],Cl:[3,17],Ca:[4,2],Fe:[4,8],Cu:[4,11],Ag:[5,11],Au:[6,11],K:[4,1],P:[3,15],Zn:[4,12],Sn:[5,14],I:[5,17]};
-const DARK_EL=['C','N','Na','Fe','K','I'];
+const PT_POS = {H:[1,1],He:[1,18],C:[2,14],N:[2,15],O:[2,16],Na:[3,1],Mg:[3,2],Al:[3,13],S:[3,16],Cl:[3,17],Ca:[4,2],Fe:[4,8],Cu:[4,11],Ag:[5,11],Au:[6,11],K:[4,1],P:[3,15],Zn:[4,12],Sn:[5,14],I:[5,17],Li:[2,1],Ne:[2,18],Ar:[3,18],Ti:[4,4],Ni:[4,10],Pt:[6,10],Pb:[6,14]};
+const DARK_EL=['C','N','Na','Fe','K','I','Pb'];
 const ptValid = (p,g) => p===1 ? (g===1||g===18) : (p<=3 ? (g<=2||g>=13) : true);
 // moléculas: átomos en orden (el primero es el centro; los enlaces salen de él)
 const MOLS = {
@@ -1203,14 +1243,14 @@ function openLab(tab){
   }
   if(tab==='fabricar'){
     const here=MOL_IDS.filter(id=>MOLS[id].w===state.world);
-    body+=`<p>Junta átomos y fabrica moléculas. Para terminar, calcula cuánto pesa la molécula.</p><div class="shop-list">`+here.map(id=>{ const cnt=molCount(id), ok=Object.entries(cnt).every(([s,n])=>(state.atoms[s]||0)>=n), made=state.mols[id]||0;
+    if(!here.length) body+=`<p class="q">Este laboratorio no fabrica moléculas. Busca su elemento cerca de aquí para completar tu tabla periódica.</p>`;
+    else body+=`<p>Junta átomos y fabrica moléculas. Para terminar, calcula cuánto pesa la molécula.</p><div class="shop-list">`+here.map(id=>{ const cnt=molCount(id), ok=Object.entries(cnt).every(([s,n])=>(state.atoms[s]||0)>=n), made=state.mols[id]||0;
       const need=Object.entries(cnt).map(([s,n])=>{ const have=state.atoms[s]||0; return `<span class="cost ${have>=n?'ok':''}">${elemTile(s,24,!!state.found[s])} <b>${Math.min(have,n)}/${n}</b> ${esc(state.found[s]?ELEMENTS[s].n.toLowerCase():'???')}</span>`; }).join('');
       const miss=Object.entries(cnt).filter(([s,n])=>(state.atoms[s]||0)<n).map(([s,n])=>{ const E=ELEMENTS[s]; return (n-(state.atoms[s]||0))+' '+(state.found[s]?E.n.toLowerCase():'átomo misterioso')+(E.w!==state.world?' ('+WORLDS[E.w].name+')':''); });
       return `<div class="shop-item ${made?'owned':''}"><div class="si-head"><h3>${esc(MOLS[id].n)} · <span class="fml">${formulaHtml(id)}</span></h3></div>
         <div class="costs">${need}</div>${made?`<span class="tag">Fabricada ${made} ${made===1?'vez':'veces'}</span>`:''}
         ${ok?`<button class="btn small" type="button" data-mol="${id}">Fabricar</button>`:`<p class="miss">Te falta: ${esc(miss.join(', '))}.</p>`}</div>`; }).join('')+`</div>`;
-    const others=WORLD_IDS.filter(w=>w!==state.world).map(w=>WORLDS[w].name);
-    body+=`<p class="note">Los laboratorios de ${esc(others.join(', '))} fabrican otras moléculas.</p>`;
+    body+=`<p class="note">Los laboratorios de los otros mundos fabrican otras moléculas.</p>`;
   }
   if(tab==='clasificar'){
     const nf=EL_IDS.filter(s=>state.found[s]);
@@ -1288,6 +1328,7 @@ const FAUNA = {
   tucan:{n:'Tucán',w:'selva',tipo:'Ave',f:'Su pico enorme es muy liviano y le ayuda a soltar calor.',move:'fly',sp:2.6,count:2},
   mono:{n:'Mono',w:'selva',tipo:'Mamífero',f:'Algunos monos usan la cola para agarrarse de las ramas.',move:'walk',sp:1.8,count:2},
   caballo:{n:'Caballo',w:'castillo',tipo:'Mamífero',f:'Los caballos pueden dormir de pie.',move:'walk',sp:1.6,count:2},
+  roverm:{n:'Robot explorador de Marte',w:'marte',tipo:'Máquina',f:'Robots como Perseverance exploran Marte desde 2021, manejados desde la Tierra.',move:'walk',sp:0.8,count:2},
   dragon:{n:'Dragón',w:'castillo',tipo:'Ser imaginario',f:'Los dragones no existen: son seres de los cuentos.',move:'fly',sp:3.5,count:1}
 };
 const FAUNA_IDS = Object.keys(FAUNA);
@@ -1330,7 +1371,7 @@ function buildAnimal(id){
   if(id==='pinguino'){ const g=new THREE.Group(); const p=buildPet('pingui'); p.scale.setScalar(1.7); p.position.y=0.62; g.add(p);
     const legs=[]; for(const sx of [-1,1]){ const l=new THREE.Group(); l.position.set(sx*0.15,0.12,0.05); g.add(l); mesh(new THREE.BoxGeometry(0.14,0.05,0.24), M('#ff9a2e'), 0,-0.08,0.05, l); legs.push(l); }
     r={g,legs,body:p}; }
-  if(id==='rover'){ const g=new THREE.Group(); mesh(new THREE.BoxGeometry(0.9,0.35,1.2), M('#dfe6f2'), 0,0.6,0, g); mesh(new THREE.BoxGeometry(0.85,0.05,1.0), M('#2a6fdb'), 0,0.8,0, g);
+  if(id==='rover' || id==='roverm'){ const g=new THREE.Group(); mesh(new THREE.BoxGeometry(0.9,0.35,1.2), M('#dfe6f2'), 0,0.6,0, g); mesh(new THREE.BoxGeometry(0.85,0.05,1.0), M('#2a6fdb'), 0,0.8,0, g);
     const legs=[]; for(const sx of [-1,1]) for(const sz of [-0.45,0,0.45]){ const w=new THREE.Group(); w.position.set(sx*0.55,0.22,sz); g.add(w); const m=mesh(new THREE.CylinderGeometry(0.2,0.2,0.14,12), M('#1b2445'), 0,0,0, w); m.rotation.z=Math.PI/2; legs.push(w); }
     mesh(new THREE.CylinderGeometry(0.04,0.04,0.7,6), M('#8a8f9c'), 0,1.15,0.35, g); const cam=mesh(new THREE.BoxGeometry(0.3,0.18,0.18), M('#c7cdda'), 0,1.55,0.35, g);
     mesh(new THREE.CircleGeometry(0.06,10), new THREE.MeshBasicMaterial({color:0x1fb5a6}), 0,1.55,0.45, g); r={g,legs,wheels:true}; }
@@ -1364,9 +1405,9 @@ function spawnFauna(){
     const F=FAUNA[id];
     for(let c=0;c<F.count;c++){
       let hx,hz,t=0; do{ const a=wr()*Math.PI*2, r=18+wr()*30; hx=Math.cos(a)*r; hz=Math.sin(a)*r; t++; }
-      while(t<60 && (Object.values(ZONES).some(Z=>Math.hypot(hx-Z.x,hz-Z.z)<9) || Math.hypot(hx-MINE_C.x,hz-MINE_C.z)<11 || obstacles.some(o=>o.top===undefined && Math.hypot(o.x-hx,o.z-hz)<o.r+1.5) || boxes.some(b=>Math.abs(hx-b.x)<b.hw+2 && Math.abs(hz-b.z)<b.hd+2)));
+      while(t<60 && (Object.values(ZONES).some(Z=>Math.hypot(hx-Z.x,hz-Z.z)<9) || Math.hypot(hx-SPACE_C.x,hz-SPACE_C.z)<12 || Math.hypot(hx-MINE_C.x,hz-MINE_C.z)<11 || obstacles.some(o=>o.top===undefined && Math.hypot(o.x-hx,o.z-hz)<o.r+1.5) || boxes.some(b=>Math.abs(hx-b.x)<b.hw+2 && Math.abs(hz-b.z)<b.hd+2)));
       if(id==='dragon'){ hx=-32; hz=-32; }
-      const r=buildAnimal(id); r.g.scale.setScalar(({camello:1.5,caballo:1.4,oso:1.35,tortuga:1.4,cangrejo:1.5,zorro:1.6,lagarto:1.7,rana:1.6,mono:1.5,alien:1.3,rover:1.25,pinguino:1.1,loro:1.4,tucan:1.4})[id]||1); r.g.position.set(hx, F.move==='fly'?5+wr()*3:0, hz); scene.add(r.g);
+      const r=buildAnimal(id); r.g.scale.setScalar(({camello:1.5,caballo:1.4,oso:1.35,tortuga:1.4,cangrejo:1.5,zorro:1.6,lagarto:1.7,rana:1.6,mono:1.5,alien:1.3,rover:1.25,roverm:1.25,pinguino:1.1,loro:1.4,tucan:1.4})[id]||1); r.g.position.set(hx, F.move==='fly'?5+wr()*3:0, hz); scene.add(r.g);
       const an={id, F, ...r, home:{x:hx,z:hz}, tx:hx, tz:hz, wait:wr()*3, phase:wr()*10, ang:wr()*6.28, hop:0, x:hx, z:hz};
       animals.push(an);
       interactables.push({get x(){return an.g.position.x;}, get z(){return an.g.position.z;}, r:F.move==='fly'?4:2.6, maxY: F.move==='fly'?undefined:3,
@@ -1413,6 +1454,31 @@ function updateFauna(dt, t){
     if(a.neck && a.id==='camello') a.neck.rotation.x=0.35+Math.sin(a.phase*1.5)*0.08;
   }
 }
+const TIPO_HINT={'Mamífero':'Tiene pelo y toma leche de su mamá.','Ave':'Tiene plumas y pico.','Reptil':'Tiene escamas y pone huevos.','Anfibio':'Vive en el agua y en la tierra.','Crustáceo':'Tiene caparazón duro y muchas patas.','Máquina':'La construyen las personas.','Ser imaginario':'No existe de verdad.'};
+function openAlbumSort(){
+  const seen=FAUNA_IDS.filter(i=>state.animals[i]);
+  if(seen.length<3){ openModal('Organizar el álbum',`<p class="q">Conoce por lo menos 3 animales para organizar tu álbum. Llevas ${seen.length}.</p>`,[{label:'Seguir',fn:closeModal}],'Conoce por lo menos tres animales.'); return; }
+  const tipos=[...new Set(['Mamífero','Ave','Reptil',...seen.map(i=>FAUNA[i].tipo)])];
+  const left=shuffle([...seen]), placed={}; let sel=null, firstOk=0; const tried=new Set();
+  tipos.forEach(t=>placed[t]=[]);
+  const render=(msg='')=>{
+    const cards=left.map(i=>`<button type="button" class="opt txt" style="width:auto;min-width:0;font-size:1rem;padding:8px 12px;${sel===i?'background:var(--sun)':''}" data-a="${i}">${esc(FAUNA[i].n)}</button>`).join('');
+    const cols=tipos.map(t=>`<button type="button" class="shop-item sort-col" data-t="${esc(t)}" style="text-align:left;cursor:pointer;font:inherit;color:var(--ink)"><div class="si-head"><h3>${esc(t)}</h3></div><p class="note" style="margin:0">${esc(TIPO_HINT[t]||'')}</p><div class="costs">${placed[t].map(i=>`<span class="cost ok">${esc(FAUNA[i].n)}</span>`).join('')}</div></button>`).join('');
+    openModal('Organizar el álbum', `<p class="q" style="margin:0">${left.length?'Toca un animal y luego su grupo.':'¡Todos en su grupo!'}</p><div class="opts">${cards}</div><div class="shop-list">${cols}</div><div class="feedback" id="fb">${esc(msg)}</div>`,
+      [{label:'Salir',cls:'ghost',fn:closeModal}], left.length&&!msg?'Toca un animal y luego su grupo.':'');
+    document.querySelectorAll('#mBody [data-a]').forEach(b=>b.onclick=()=>{ sel=b.dataset.a; sfx.tink(); render(); });
+    document.querySelectorAll('#mBody [data-t]').forEach(b=>b.onclick=()=>{
+      if(!sel){ render('Primero toca un animal.'); return; }
+      const t=b.dataset.t, F=FAUNA[sel];
+      if(F.tipo===t){ placed[t].push(sel); left.splice(left.indexOf(sel),1); if(!tried.has(sel)) firstOk++; state.stats.album.ok++; save(); sfx.ok(); const nm=F.n; sel=null;
+        if(!left.length){ state.coins+=firstOk; save(); updateBagChip(); sfx.level();
+          openModal('¡Álbum organizado!', `<p class="q">Acertaste <b>${firstOk}</b> al primer intento. Ganaste ${firstOk} ${firstOk===1?'moneda':'monedas'}.</p>`, [{label:'Seguir',fn:closeModal}], '¡Álbum organizado! Acertaste '+firstOk+' al primer intento.'); return; }
+        render('¡Sí! '+nm+' es '+t.toLowerCase()+'.'); }
+      else { tried.add(sel); state.stats.album.err++; save(); sfx.err(); render('No: '+F.n+' no es '+t.toLowerCase()+'. Pista: lee qué tiene cada grupo.'); }
+    });
+  };
+  render();
+}
 function meetAnimal(an){
   const F=an.F, first=!state.animals[an.id];
   state.animals[an.id]=1; save(); tones([660,880,990],0.09,'sine',0.04);
@@ -1420,7 +1486,7 @@ function meetAnimal(an){
   openModal((first?'¡Conociste: ':'')+F.n+(first?'!':''), `<p class="q" style="margin:0">${esc(F.f)}</p>
     <dl class="fdl"><dt>Es un</dt><dd>${esc(F.tipo.toLowerCase())}</dd><dt>Vive en</dt><dd>${esc(WORLDS[F.w].name)}</dd></dl>
     <p class="note">${first?'Lo guardaste en tu álbum. ':''}Álbum de animales y seres: ${seen} de ${FAUNA_IDS.length}. Míralo en tu bolsa (tecla I).</p>`,
-    [{label:'Seguir',fn:closeModal}], F.n+'. Es un '+F.tipo.toLowerCase()+'. '+F.f);
+    [{label:'Organizar mi álbum',cls:'ghost',fn:openAlbumSort},{label:'Seguir',fn:closeModal}], F.n+'. Es un '+F.tipo.toLowerCase()+'. '+F.f);
 }
 
 /* ---------- bloques del jugador ---------- */
@@ -1887,7 +1953,7 @@ function refreshCrystals(){
     towerSlots[i].material.color.setHex(on?Z.color:0xc7cdda); towerSlots[i].material.emissive.setHex(on?0x221100:0x000000);
   });
   const all=crystalCount()===4; beacon.material.emissive.setHex(all?0xffd36b:0x000000); beacon.material.color.setHex(all?0xfff3c4:0xffffff);
-  $('#lvlNum').textContent=state.level; $('#wName').textContent=T.name;
+  $('#lvlNum').textContent=state.level; $('#wName').textContent=T.name+' · gravedad '+gTxt(T.gms)+' m/s²';
   $('#crys').innerHTML = ZONE_IDS.map(id=>`<span class="cr ${state.done[id]?'on':''}" title="${ZONES[id].name}" style="${state.done[id]?'background:'+ZONES[id].css:''}"></span>`).join('');
 }
 function winCrystal(id){
@@ -2295,6 +2361,7 @@ function openHelp(){
   <li>Presiona <kbd>B</kbd> para construir con bloques en toda la isla.</li>
   <li>Presiona <kbd>C</kbd> para cambiar tu personaje.</li>
   <li>Con la mochila cohete, presiona <kbd>F</kbd> para dar una voltereta en el aire.</li>
+  <li>El puerto espacial tiene portales a la Luna y a los planetas. En cada uno la gravedad es distinta: en Júpiter usa el propulsor (F).</li>
   <li>En cada mundo hay animales y seres. Acércate y presiona E para conocerlos.</li>
   <li>Los portales de colores de la plaza te llevan a otros mundos: camina hacia el remolino.</li>
   <li>Puedes subirte a los muros de la mina, al techo del templo y a los escalones. Arriba hay cofres con monedas.</li>
@@ -2404,8 +2471,8 @@ function update(dt){
   if(canMove(P.x,P.z+dz)) P.z+=dz; else P.vz=0;
   const ground=surfaceAt(P.x,P.z,P.y); const onGround=P.y<=ground+0.001;
   if(onGround && flipT===0) airJumps=0;
-  const rocket = state.avatar.back==='cohete';
-  const boost = ()=>{ P.vy=T.jump*1.5; airJumps=1; flameT=0.9; flipT=0.0001; flipFwd=4.5; sfx.rocket(); };
+  const rocket = state.avatar.back==='cohete' || !!T.space;
+  const boost = ()=>{ P.vy=Math.max(T.jump*1.25, Math.sqrt(2*T.g*3.2)); airJumps=1; flameT=0.9; flipT=0.0001; flipFwd=4.5; sfx.rocket(); };
   if(jumpReq){ jumpReq=false;
     if(onGround){ P.vy=T.jump; }
     else if(rocket && airJumps<1) boost(); }
@@ -2463,8 +2530,21 @@ function startGame(){
   requestLock(); welcome();
 }
 let arrived=false;
+function openGravity(){
+  const ratio=T.gms/9.8, kg=Math.round(20*ratio), strong=ratio>1.05, weak=ratio<0.7;
+  const bar=(lab,v,col)=>`<div style="display:grid;grid-template-columns:90px 1fr auto;gap:8px;align-items:center"><b>${lab}</b><span style="height:18px;border:2px solid var(--ink);border-radius:8px;background:${col};width:${Math.max(4,v/23.1*100)}%"></span><span>${gTxt(v)} m/s²</span></div>`;
+  openModal('Bienvenido a '+T.name, `<p class="q" style="margin:0">${esc(T.fact)}</p>
+    <div style="display:grid;gap:6px;background:var(--mist);border-radius:14px;padding:10px 12px">${bar('Tierra',9.8,'#2bb673')}${bar(T.name,T.gms,T.portal)}</div>
+    <p>La <b>gravedad</b> es la fuerza que te jala hacia el suelo. Aquí es <b>${ratio>=1?gTxt(ratio)+' veces':'menos de la mitad de'}</b> la de la Tierra${ratio<1&&ratio>=0.5?'':''}.</p>
+    <p>Si en la Tierra pesas 20 kg, aquí la báscula marcaría <b>${kg} kg</b>.</p>
+    <p class="q" style="margin:0">${strong?'Con tanta gravedad tus saltos son bajitos. Usa tu propulsor con la tecla F.':(weak?'Con tan poca gravedad, ¡saltas muchísimo más alto!':'Aquí saltas parecido a la Tierra.')}</p>
+    ${T.gas?'<p class="note">Los planetas gigantes de gas no tienen suelo firme. En el juego estás en una estación que flota en sus nubes.</p>':''}`,
+    [{label:'¡A explorar!',fn:()=>{ closeModal(); toast(T.name,[strong?'Presiona F para usar el propulsor.':'Prueba saltar con Espacio.','El puerto espacial tiene portales a los otros planetas.'],7000); }}],
+    'Bienvenido a '+T.name+'. '+T.fact+' Aquí la báscula marcaría '+kg+' kilos.');
+}
 function welcome(){
   const hi = state.name ? '¡Hola, '+state.name+'!' : '¡Hola!';
+  if(arrived && T.space && !state.seenIntro['grav:'+state.world]){ state.seenIntro['grav:'+state.world]=1; save(); openGravity(); return; }
   if(arrived){ toast('¡Llegaste a '+T.name+'!',[T.blurb,'Aquí también hay 4 cristales y una torre.','Los portales de la plaza te llevan a los otros mundos.']); return; }
   if(!state.seenIntro.welcome){ state.seenIntro.welcome=1; save();
     toast(hi+' Bienvenido a Isla Cristal',['Explora las cuatro zonas de la isla.','Cada zona te da un cristal.','Con 4 cristales, ve a la torre del centro.']);
@@ -2500,7 +2580,7 @@ function boot(){
   if(auto){ arrived=true;
     let from=null, wf=false; try{ from=sessionStorage.getItem('islaFrom'); wf=sessionStorage.getItem('islaWarp')==='1'; sessionStorage.removeItem('islaFrom'); sessionStorage.removeItem('islaWarp'); }catch(e){}
     const back=portals.find(p=>p.id===from);
-    if(back){ const d=Math.hypot(back.x,back.z), k=(d-3.2)/d; P.x=back.x*k; P.z=back.z*k; targetFacing=facing=Math.atan2(-back.x,-back.z); P.yaw=facing+Math.PI; }
+    if(back){ P.x=back.x+Math.sin(back.rot)*3.2; P.z=back.z+Math.cos(back.rot)*3.2; targetFacing=facing=back.rot; P.yaw=facing+Math.PI; }
     else { P.x=-5.5; P.z=-5.5; P.yaw=Math.PI*0.75; targetFacing=facing=-Math.PI*0.25; }
     if(wf){ const w=$('#warp'), c=T.portal; w.style.background=`radial-gradient(circle, #ffffff 0 4%, transparent 30%), repeating-conic-gradient(from 0deg, ${c} 0 14deg, #ffffff 14deg 22deg, #1b2445 22deg 36deg)`; w.className='out'; $('#stage').classList.add('spin-out'); setTimeout(()=>{ w.className=''; $('#stage').classList.remove('spin-out'); },1400); }
     startGame(); }
