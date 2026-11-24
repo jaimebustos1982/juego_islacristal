@@ -384,9 +384,33 @@ const sfx = {
   collect:()=>tones([660,880],0.08), ok:()=>tones([523,659,784],0.1), err:()=>tones([330,262],0.14,'triangle',0.035),
   place:()=>tones([420],0.05,'triangle',0.03), crystal:()=>tones([523,659,784,1046],0.12), level:()=>tones([392,523,659,784,1046],0.13), tink:()=>tones([1320,990],0.035,'triangle',0.028), gem:()=>tones([880,1175,1568],0.07,'sine',0.045), rocket:()=>tones([196,262,392,523,784],0.05,'triangle',0.035)
 };
+/* voz: elige la voz en español más natural que tenga el equipo */
+let voiceList=[];
+function scoreVoice(v){
+  if(!/^es/i.test(v.lang)) return -1;
+  const n=v.name.toLowerCase(); let sc=0;
+  if(/natural|neural|online|premium|enhanced|mejorad/.test(n)) sc+=50;
+  if(/google/.test(n)) sc+=25;
+  if(/microsoft/.test(n) && !/natural|online/.test(n)) sc-=5;
+  if(/es-co|colombia/i.test(v.lang+' '+n)) sc+=12; else if(/es-(mx|us|419)|méxico|mexico|latin/i.test(v.lang+' '+n)) sc+=9; else if(/es-es|españa|spain/i.test(v.lang+' '+n)) sc+=4;
+  if(/salome|gonzalo|dalia|jorge|paloma|elena|camila|ximena|sabina|helena|lucia/.test(n)) sc+=6;
+  if(!v.localService) sc+=3;
+  return sc;
+}
+function loadVoices(){ try{ voiceList=speechSynthesis.getVoices().filter(v=>/^es/i.test(v.lang)).sort((a,b)=>scoreVoice(b)-scoreVoice(a)); }catch(e){ voiceList=[]; } }
+try{ loadVoices(); speechSynthesis.onvoiceschanged=loadVoices; }catch(e){}
+function pickVoice(){ if(!voiceList.length) loadVoices(); const saved=state.settings.voice; return (saved && voiceList.find(v=>v.name===saved)) || voiceList[0] || null; }
 function speak(text){
-  try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='es-CO'; u.rate=0.92;
-    const v=speechSynthesis.getVoices().find(v=>/^es/i.test(v.lang)); if(v) u.voice=v; speechSynthesis.speak(u);}catch(e){}
+  try{
+    speechSynthesis.cancel(); if(!text) return;
+    const v=pickVoice();
+    // frases cortas: suena más natural y evita que el navegador corte textos largos
+    const parts=String(text).replace(/\s+/g,' ').match(/[^.!?¿¡]+[.!?]*|[¿¡][^?!]+[?!]/g) || [text];
+    parts.map(t=>t.trim()).filter(Boolean).forEach(t=>{
+      const u=new SpeechSynthesisUtterance(t); u.lang=v?v.lang:'es-CO'; if(v) u.voice=v;
+      u.rate = state.settings.voiceRate || 0.95; u.pitch = 1.05; speechSynthesis.speak(u);
+    });
+  }catch(e){}
 }
 
 /* ---------- escena ---------- */
@@ -2396,7 +2420,10 @@ function openParent(){
     <div style="overflow-x:auto"><table><thead><tr><th>Zona</th><th>Aciertos</th><th>Errores</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="set"><label for="sLim">Tiempo de juego por día</label><select id="sLim">${opt([20,30,45,60,90,0],state.settings.limit,v=>v?v+' min':'Sin límite')}</select>
     <label for="sBrk">Pausa de movimiento cada</label><select id="sBrk">${opt([10,15,20,30,0],state.settings.breakEvery,v=>v?v+' min':'Nunca')}</select>
-    <label for="sSnd">Sonidos</label><select id="sSnd">${opt([1,0],state.settings.sound?1:0,v=>v?'Suaves':'Apagados')}</select></div>
+    <label for="sSnd">Sonidos</label><select id="sSnd">${opt([1,0],state.settings.sound?1:0,v=>v?'Suaves':'Apagados')}</select>
+    <label for="sVoz">Voz que lee las instrucciones</label><select id="sVoz">${(loadVoices(),voiceList).length?voiceList.map((v,i)=>`<option value="${esc(v.name)}" ${(state.settings.voice?state.settings.voice===v.name:i===0)?'selected':''}>${esc(v.name)}${i===0?' (recomendada)':''}</option>`).join(''):'<option value="">Este equipo no tiene voces en español</option>'}</select>
+    <label for="sVel">Velocidad de la voz</label><select id="sVel">${opt([0.85,0.95,1.05],state.settings.voiceRate||0.95,v=>v===0.85?'Despacio':(v===0.95?'Normal':'Rápida'))}</select></div>
+    <div class="row"><button class="btn small ghost" type="button" id="vozTest">Probar voz</button><span class="note">Para voces más naturales, usa Edge (voces "Online (Natural)") o Chrome (voces de Google).</span></div>
     <h3 style="margin:6px 0 0;font-family:var(--display)">Premios reales</h3>
     <p class="note">Jacobo los canjea con monedas que gana vendiendo cristales (común = 1, poco común = 3, raro = 10). Una veta común da unas 3 monedas.</p>
     <div class="prz">${[0,1,2,3].map(i=>{ const p=(state.prizes||[])[i]||{n:'',c:''}; return `<input id="pzn${i}" aria-label="Premio ${i+1}" placeholder="Premio ${i+1}" value="${esc(p.n||'')}"><input id="pzc${i}" aria-label="Monedas premio ${i+1}" inputmode="numeric" placeholder="Monedas" value="${p.c||''}">`; }).join('')}</div>
@@ -2409,13 +2436,14 @@ function openParent(){
     [{label:'Borrar progreso',cls:'ghost',id:'rst',fn:()=>{ const b=$('#rst'); if(b.dataset.arm){ try{localStorage.removeItem(STORE);}catch(e){} location.reload(); } else { b.dataset.arm=1; b.textContent='Confirmar: borrar todo'; } }},
      {label:'Dar 15 min más',cls:'ghost',fn:()=>{ state.today.extra=(state.today.extra||0)+15; save(); applyParent(); }},
      {label:'Guardar',fn:applyParent}]);
+  const vt=$('#vozTest'); if(vt) vt.onclick=()=>{ const vz=$('#sVoz'), vl=$('#sVel'); const old=[state.settings.voice,state.settings.voiceRate]; if(vz&&vz.value) state.settings.voice=vz.value; if(vl) state.settings.voiceRate=+vl.value; speak('¡Hola! Soy la voz de Isla Cristal. ¿Vamos a explorar?'); [state.settings.voice,state.settings.voiceRate]=old; };
   document.querySelectorAll('#mBody [data-done]').forEach(b=>b.onclick=()=>{ readPrizes(); state.redeems[+b.dataset.done].done=true; save(); openParent(); });
 }
 function readPrizes(){ if(!$('#pzn0')) return; const out=[]; for(let i=0;i<4;i++){ const n=$('#pzn'+i).value.trim().slice(0,60), c=parseInt($('#pzc'+i).value,10); if(n && c>0) out.push({n,c}); } state.prizes=out; }
 function applyParent(){
   const l=$('#sLim'), b=$('#sBrk'), s=$('#sSnd');
   readPrizes();
-  if(l){ state.settings.limit=+l.value; state.settings.breakEvery=+b.value; state.settings.sound=s.value==='1'; }
+  if(l){ state.settings.limit=+l.value; state.settings.breakEvery=+b.value; state.settings.sound=s.value==='1'; const vz=$('#sVoz'), vl=$('#sVel'); if(vz && vz.value) state.settings.voice=vz.value; if(vl) state.settings.voiceRate=+vl.value; }
   save(); renderSoundBtn();
   if(limitReached()) openLimit(); else closeModal();
 }
