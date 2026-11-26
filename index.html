@@ -234,6 +234,7 @@ th{font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
   <div class="hud-tl"><div><div class="lvl">Nivel <span id="lvlNum">1</span></div><div class="wname" id="wName"></div></div><div class="crys" id="crys"></div><button type="button" class="bagchip" id="btnBag" title="Tu bolsa (I)"><span id="bagIc"></span><span id="bagN">0</span><span id="coinIc"></span><span id="coinN">0</span></button></div>
   <div class="hud-tr">
     <button class="btn small" id="btnAvatar" type="button">Personaje</button>
+    <button class="btn small ghost" id="btnPow" type="button">Poderes</button>
     <button class="btn small ghost" id="btnSound" type="button">Sonido</button>
     <button class="btn small ghost" id="btnHelp" type="button">Ayuda</button>
     <button class="btn small ghost" id="btnParent" type="button">Padres</button>
@@ -262,6 +263,7 @@ th{font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
       <span><kbd>F</kbd></span><span>Propulsor con voltereta</span>
       <span><kbd>E</kbd> mantener</span><span>Picar vetas de cristal</span>
       <span><kbd>I</kbd></span><span>Ver tu bolsa de cristales</span>
+      <span><kbd>P</kbd></span><span>Tus poderes</span>
       <span><kbd>C</kbd></span><span>Cambiar tu personaje</span>
       <span><kbd>H</kbd></span><span>Escuchar instrucciones</span>
     </div>
@@ -304,7 +306,7 @@ function defaultState(){
     done:{numeros:false,patrones:false,bloques:false,robot:false},
     stats:{numeros:{ok:0,err:0},patrones:{ok:0,err:0},bloques:{ok:0,err:0},robot:{ok:0,err:0},lab:{ok:0,err:0},album:{ok:0,err:0}},
     settings:{limit:60, breakEvery:15, sound:true},
-    today:{date:todayStr(), secs:0, extra:0}, totalSecs:0, seenIntro:{}, robotSeen:[], blocks:[], world:'isla', worlds:null, atoms:{}, found:{}, mols:{}, animals:{}, lastMol:null, inv:{}, coins:0, pick:0, owned:{}, redeems:[],
+    today:{date:todayStr(), secs:0, extra:0}, totalSecs:0, seenIntro:{}, robotSeen:[], blocks:[], world:'isla', worlds:null, atoms:{}, found:{}, mols:{}, animals:{}, visited:{}, powers:{}, speedLv:0, fusions:[], lastMol:null, inv:{}, coins:0, pick:0, owned:{}, redeems:[],
     prizes:[{n:'Elegir el postre',c:30},{n:'Ir al parque con papá',c:60},{n:'Escoger la película del fin de semana',c:100}] };
 }
 let state = defaultState();
@@ -341,7 +343,7 @@ Object.values(WORLDS).forEach(w=>{ w.g = 20*w.gms/9.8; w.jump = 7.2; });
 const gTxt = v => v.toFixed(1).replace('.',',');
 const WORLD_IDS = Object.keys(WORLDS);
 const emptyDone = () => ({numeros:false,patrones:false,bloques:false,robot:false});
-state.animals = state.animals||{}; state.atoms = state.atoms||{}; state.found = state.found||{}; state.mols = state.mols||{};
+state.animals = state.animals||{}; state.visited = state.visited||{}; state.powers = state.powers||{}; state.fusions = state.fusions||[]; state.atoms = state.atoms||{}; state.found = state.found||{}; state.mols = state.mols||{};
 state.inv = state.inv||{}; state.owned = state.owned||{}; state.redeems = state.redeems||[];
 if(!state.worlds){ state.worlds = { isla:{ done: state.done || emptyDone(), blocks: state.blocks || [] } }; }
 const worldOpen = id => state.stars >= WORLDS[id].need;
@@ -416,19 +418,30 @@ function speak(text){
 /* ---------- escena ---------- */
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+const GFX_HIGH = (state.settings.gfx||'alto')==='alto';
+renderer.shadowMap.enabled = GFX_HIGH; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(innerWidth, innerHeight);
 $('#stage').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(T.sky);
-scene.fog = new THREE.Fog(T.sky, T.fogN, T.fogF);
-const camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.05, 500);
+scene.fog = new THREE.Fog(T.sky, T.fogN*1.5, T.fogF*1.6);
+const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.05, 500);
 camera.rotation.order = 'YXZ';
-scene.add(new THREE.HemisphereLight(0xeef7ff, T.hemiG, 0.62)); scene.add(new THREE.AmbientLight(0xffffff, 0.32));
-const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(30,60,25); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xeef7ff, T.hemiG, 0.55)); scene.add(new THREE.AmbientLight(0xffffff, GFX_HIGH?0.2:0.3));
+const sun = new THREE.DirectionalLight(0xfff6e5, GFX_HIGH?1.0:0.8); sun.position.set(30,60,25); scene.add(sun); scene.add(sun.target);
+if(GFX_HIGH){ sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); const sc=sun.shadow.camera; sc.left=-38; sc.right=38; sc.top=38; sc.bottom=-38; sc.near=10; sc.far=160; sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.03; }
+function setShadow(obj){ if(!GFX_HIGH) return; obj.traverse(o=>{ if(o.isMesh){ const tr=o.material && o.material.transparent; o.castShadow=!tr; o.receiveShadow=!tr; } }); }
+// cielo con degradado
+(function(){ const top=new THREE.Color(T.sky).offsetHSL(0,0.12,-0.16), bot=new THREE.Color(T.sky).offsetHSL(0,0.05,0.06);
+  const mat=new THREE.ShaderMaterial({side:THREE.BackSide, depthWrite:false, fog:false, uniforms:{top:{value:top}, bot:{value:bot}},
+    vertexShader:'varying vec3 vP; void main(){ vP=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.0); }',
+    fragmentShader:'uniform vec3 top; uniform vec3 bot; varying vec3 vP; void main(){ float h=clamp(normalize(vP-cameraPosition).y*1.4+0.05,0.0,1.0); gl_FragColor=vec4(mix(bot,top,h),1.0); }'});
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(450,32,16), mat); dome.renderOrder=-1; dome.frustumCulled=false; scene.add(dome); window.__dome=dome; })();
 addEventListener('resize', ()=>{ renderer.setSize(innerWidth, innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); });
 
 const matCache = {};
-const M = (c, extra) => { const k=c+(extra?JSON.stringify(extra):''); return matCache[k] || (matCache[k] = new THREE.MeshLambertMaterial(Object.assign({color:c}, extra||{}))); };
+const vivid = c => { const col=new THREE.Color(c), hsl={}; col.getHSL(hsl); return col.setHSL(hsl.h, Math.min(1,hsl.s*1.15), hsl.l); };
+const M = (c, extra) => { const k=c+(extra?JSON.stringify(extra):''); return matCache[k] || (matCache[k] = new THREE.MeshLambertMaterial(Object.assign({color:vivid(c)}, extra||{}))); };
 function mesh(geo, mat, x=0, y=0, z=0, parent=scene){ const m=new THREE.Mesh(geo, mat); m.position.set(x,y,z); parent.add(m); return m; }
 
 function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
@@ -467,8 +480,12 @@ let island;
 
 function buildWorld(){
   const wr = mulberry32(11);
-  island = mesh(new THREE.CylinderGeometry(60,61,2,72), M(T.ground), 0,-1,0);
-  mesh(new THREE.CylinderGeometry(64,67,1.6,72), M(T.rim), 0,-1.15,0);
+  const gcv=document.createElement('canvas'); gcv.width=gcv.height=128; const gc=gcv.getContext('2d'); gc.fillStyle='#ffffff'; gc.fillRect(0,0,128,128);
+  for(let i=0;i<900;i++){ const v=200+Math.floor(wr()*55); gc.fillStyle=`rgb(${v},${v},${v})`; gc.fillRect(wr()*128,wr()*128,1+wr()*3,1+wr()*3); }
+  const gtex=new THREE.CanvasTexture(gcv); gtex.wrapS=gtex.wrapT=THREE.RepeatWrapping; gtex.repeat.set(46,46);
+  const gm=new THREE.MeshLambertMaterial({color:vivid(T.ground), map:gtex});
+  island = mesh(new THREE.CylinderGeometry(92,93,2,96), [M(T.rim), gm, M(T.rim)], 0,-1,0);
+  mesh(new THREE.CylinderGeometry(96,99,1.6,96), M(T.rim), 0,-1.15,0);
   const water = mesh(new THREE.PlaneGeometry(900,900), M(T.sea), 0,-0.9,0); water.rotation.x=-Math.PI/2;
   // plaza y caminos
   mesh(new THREE.CylinderGeometry(9,9,0.06,48), M(T.plaza), 0,0.01,0);
@@ -482,9 +499,9 @@ function buildWorld(){
   // árboles y rocas
   const trunkM=M(0x8a5a3b), leafMs=[M(0x3f9a4a),M(0x55b05a),M(0x2f8a52)];
   const nearZone=(x,z,d)=>Object.values(ZONES).some(Z=>Math.hypot(x-Z.x,z-Z.z)<d);
-  for(let i=0;i<220 && obstacles.length<70;i++){
-    const a=wr()*Math.PI*2, r=13+wr()*42, x=Math.cos(a)*r, z=Math.sin(a)*r;
-    if(nearZone(x,z,15) || Math.hypot(x-MINE_C.x,z-MINE_C.z)<11.5 || Math.hypot(x-8,z-8)<4 || Math.hypot(x-14,z-12.5)<9.5 || PORTAL_SLOTS.some(([qx,qz])=>Math.hypot(x-qx,z-qz)<3.6) || Math.hypot(x-SPACE_C.x,z-SPACE_C.z)<12.5 || boxes.some(b=>Math.abs(x-b.x)<b.hw+2.5 && Math.abs(z-b.z)<b.hd+2.5)) continue;
+  for(let i=0;i<520 && obstacles.length<200;i++){
+    const a=wr()*Math.PI*2, r=13+wr()*75, x=Math.cos(a)*r, z=Math.sin(a)*r;
+    if(nearZone(x,z,15) || Math.hypot(x-MINE_C.x,z-MINE_C.z)<11.5 || Math.hypot(x-8,z-8)<4 || Math.hypot(x-14,z-12.5)<9.5 || PORTAL_SLOTS.some(([qx,qz])=>Math.hypot(x-qx,z-qz)<3.6) || Math.hypot(x-SPACE_C.x,z-SPACE_C.z)<12.5 || Math.hypot(x-FUS_C.x,z-FUS_C.z)<6.5 || boxes.some(b=>Math.abs(x-b.x)<b.hw+2.5 && Math.abs(z-b.z)<b.hd+2.5)) continue;
     if((Math.abs(x)<4.5 && Math.abs(z)<32) || (Math.abs(z)<4.5 && Math.abs(x)<32)) continue;
     if(obstacles.some(o=>Math.hypot(o.x-x,o.z-z)<o.r+3.2)) continue;
     const s=0.8+wr()*0.7;
@@ -496,14 +513,14 @@ function buildWorld(){
     }
   }
   // nubes
-  for(let i=0;i<(T.clouds?10:0);i++){
+  for(let i=0;i<(T.clouds?18:0);i++){
     const g=new THREE.Group(); const cm=M(0xffffff);
     for(let k=0;k<3;k++){ const s=mesh(new THREE.SphereGeometry(3+wr()*2,10,8), cm, k*3.5-3.5, wr(), 0, g); s.scale.y=0.55; }
-    g.position.set(wr()*200-100, 32+wr()*12, wr()*200-100); scene.add(g);
-    animated.push(t=>{ g.position.x += 0.01; if(g.position.x>120) g.position.x=-120; });
+    g.position.set(wr()*300-150, 36+wr()*14, wr()*300-150); scene.add(g);
+    animated.push(t=>{ g.position.x += 0.01; if(g.position.x>170) g.position.x=-170; });
   }
 
-  buildTower(); buildNumeros(); buildTemplo(); buildTaller(); buildRobot(); buildPortals(); buildShop(); buildLab(mulberry32(77)); spawnFauna();
+  buildTower(); buildNumeros(); buildTemplo(); buildTaller(); buildRobot(); buildPortals(); buildShop(); buildLab(mulberry32(77)); buildFusionLab(); spawnFauna(); spawnFusions();
 
   // letreros en la plaza
   const signs=[['NÚMEROS',2.6,-10.5,'#f4a300'],['PATRONES',10.5,-2.6,'#8a5cf6'],['BLOQUES',-2.6,10.5,'#ef5d60'],['ROBOT',-10.5,2.6,'#1fb5a6']];
@@ -548,8 +565,16 @@ function plantFlora(x,z,s,wr){
     obstacles.push({x,z,r:0.6*s});
   }
 }
+function buildMesas(wr){
+  const darker=new THREE.Color(T.ground).offsetHSL(0,0,-0.08).getHex(), rim=T.rim;
+  [25,115,205,295].forEach((deg,i)=>{ const a=deg*Math.PI/180, x=Math.cos(a)*70, z=Math.sin(a)*70;
+    [[8.5,1.0],[5.8,2.0],[3.2,3.0]].forEach(([r,top],k)=>{ const m=mesh(new THREE.CylinderGeometry(r,r+0.3,top,28), [M(rim),M(k%2?T.ground:darker),M(rim)], x,top/2,z); obstacles.push({x,z,r,top}); });
+    makeChest('mesa'+i, x, z, 3.0, 4);
+  });
+}
 function buildDecor(wr){
   const ob=(x,z,r)=>obstacles.push({x,z,r});
+  buildMesas(wr);
   if(T.flora==='selva'){
     [[-22,-20,1.0],[-27,-15,1.3],[-18,-26,1.1],[-30,-23,1.5],[-24,-30,1.2],[-34,-30,1.7]].forEach(([x,z,top])=>{
       mesh(new THREE.CylinderGeometry(0.45,0.6,top,10), M(0xf3efe6), x,top/2,z);
@@ -908,6 +933,7 @@ function buildMines(wr){
   makeNode('m0', MINE_C.x, MINE_C.z, 2, wr);
   [[0,0],[1.4,0],[2.8,1],[4.2,1]].forEach(([a,tier],i)=>{ const ang = face + 1.2 + a; makeNode('m'+(i+1), MINE_C.x+Math.sin(ang)*4.3, MINE_C.z+Math.cos(ang)*4.3, tier, wr); });
   // vetas en el camino
+  [[60,-20,0],[-55,-45,1],[20,62,0],[-62,58,2],[75,25,1],[-12,-74,0]].forEach(([x,z,tier],i)=>makeNode('o'+i, x, z, tier, wr));
   [[4.2,-19,0],[-3,-17,0],[15,4.2,0],[22,-4.2,1],[-18,-3,0],[-22,4.2,1],[-4.2,18,0],[4.2,24,1]].forEach(([x,z,tier],i)=>makeNode('c'+i, x, z, tier, wr));
 }
 const parts3 = []; const chipGeo = new THREE.BoxGeometry(0.14,0.14,0.14);
@@ -934,7 +960,7 @@ function mineHit(nd, fromHold){
   if(nd.depleted){ if(!fromHold) toast('Veta vacía',['Los cristales vuelven a crecer. Busca otra veta.'],5000); return; }
   const need = TIERS[nd.tier].pick;
   if(state.pick < need){ if(!fromHold){ sfx.err(); toast('Esta veta es muy dura',[`Necesitas el ${PICKS[need].n.toLowerCase()}.`,'Cámbialo con el Joyero de la plaza.'],7000); } return; }
-  mineCd = 0.34; swingT = 0.26; pickShowT = 2.5;
+  mineCd = hasPower('manos')?0.17:0.34; swingT = 0.26; pickShowT = 2.5;
   targetFacing = Math.atan2(nd.x-P.x, nd.z-P.z);
   nd.hits++; sfx.tink();
   const C = CRYSTALS[nd.type], hn = hitsNeeded(nd.tier);
@@ -991,7 +1017,9 @@ function buildPet(id){
 }
 function rebuildPet(){
   if(petObj){ scene.remove(petObj); petObj=null; }
-  const id = state.avatar.pet; if(!id || id==='nada' || !state.owned[PET_SHOP[id]]) return;
+  const id = state.avatar.pet; if(!id || id==='nada') return;
+  if(id.startsWith('fus:')){ const f=(state.fusions||[])[+id.slice(4)]; if(!f) return; petObj=new THREE.Group(); const hy=buildHybrid(f); hy.g.scale.setScalar(0.55); hy.g.position.y=-0.5; petObj.add(hy.g); petObj.position.set(P.x+1,P.y+1.6,P.z); scene.add(petObj); return; }
+  if(!state.owned[PET_SHOP[id]]) return;
   petObj = buildPet(id); petObj.position.set(P.x+1, P.y+1.6, P.z); scene.add(petObj);
 }
 const PET_SHOP = {gemi:'gemi', robotito:'robotito', pingui:'pingui'};
@@ -1233,7 +1261,7 @@ function makeElemNode(id, x, z, sym, wr){
 function elemHit(nd, fromHold){
   const E=ELEMENTS[nd.elem];
   if(nd.depleted){ if(!fromHold) toast('Fuente vacía',['Vuelve a llenarse en un minuto.'],4000); return; }
-  mineCd=0.34; swingT=E.gas?0:0.26; pickShowT=E.gas?0:2.5; targetFacing=Math.atan2(nd.x-P.x, nd.z-P.z);
+  mineCd=hasPower('manos')?0.17:0.34; swingT=E.gas?0:0.26; pickShowT=E.gas?0:2.5; targetFacing=Math.atan2(nd.x-P.x, nd.z-P.z);
   const need = E.gas ? 1 : 3; nd.hits++; nd.shake=0.15; sfx.tink();
   burst(nd.x,1,nd.z,new THREE.Color(E.css).getHex(),3); nd.sg.scale.setScalar(1-(nd.hits/need)*0.4);
   if(nd.hits>=need){
@@ -1428,8 +1456,8 @@ function spawnFauna(){
   FAUNA_IDS.filter(id=>FAUNA[id].w===state.world).forEach(id=>{
     const F=FAUNA[id];
     for(let c=0;c<F.count;c++){
-      let hx,hz,t=0; do{ const a=wr()*Math.PI*2, r=18+wr()*30; hx=Math.cos(a)*r; hz=Math.sin(a)*r; t++; }
-      while(t<60 && (Object.values(ZONES).some(Z=>Math.hypot(hx-Z.x,hz-Z.z)<9) || Math.hypot(hx-SPACE_C.x,hz-SPACE_C.z)<12 || Math.hypot(hx-MINE_C.x,hz-MINE_C.z)<11 || obstacles.some(o=>o.top===undefined && Math.hypot(o.x-hx,o.z-hz)<o.r+1.5) || boxes.some(b=>Math.abs(hx-b.x)<b.hw+2 && Math.abs(hz-b.z)<b.hd+2)));
+      let hx,hz,t=0; do{ const a=wr()*Math.PI*2, r=18+wr()*62; hx=Math.cos(a)*r; hz=Math.sin(a)*r; t++; }
+      while(t<60 && (Object.values(ZONES).some(Z=>Math.hypot(hx-Z.x,hz-Z.z)<9) || Math.hypot(hx-SPACE_C.x,hz-SPACE_C.z)<12 || Math.hypot(hx-FUS_C.x,hz-FUS_C.z)<7 || Math.hypot(hx-MINE_C.x,hz-MINE_C.z)<11 || obstacles.some(o=>o.top===undefined && Math.hypot(o.x-hx,o.z-hz)<o.r+1.5) || boxes.some(b=>Math.abs(hx-b.x)<b.hw+2 && Math.abs(hz-b.z)<b.hd+2)));
       if(id==='dragon'){ hx=-32; hz=-32; }
       const r=buildAnimal(id); r.g.scale.setScalar(({camello:1.5,caballo:1.4,oso:1.35,tortuga:1.4,cangrejo:1.5,zorro:1.6,lagarto:1.7,rana:1.6,mono:1.5,alien:1.3,rover:1.25,roverm:1.25,pinguino:1.1,loro:1.4,tucan:1.4})[id]||1); r.g.position.set(hx, F.move==='fly'?5+wr()*3:0, hz); scene.add(r.g);
       const an={id, F, ...r, home:{x:hx,z:hz}, tx:hx, tz:hz, wait:wr()*3, phase:wr()*10, ang:wr()*6.28, hop:0, x:hx, z:hz};
@@ -1440,7 +1468,7 @@ function spawnFauna(){
   });
 }
 function animalBlocked(x,z){
-  if(Math.hypot(x,z)>54) return true;
+  if(Math.hypot(x,z)>86) return true;
   for(const o of obstacles){ if(Math.hypot(x-o.x,z-o.z)<o.r+0.7) return true; }
   for(const b of boxes){ if(b.bot<1 && Math.abs(x-b.x)<b.hw+0.7 && Math.abs(z-b.z)<b.hd+0.7) return true; }
   return false;
@@ -1449,7 +1477,7 @@ function updateFauna(dt, t){
   for(const a of animals){
     const g=a.g, F=a.F; a.phase+=dt;
     if(F.move==='fly'){
-      const R0 = a.id==='dragon'?16:7, h = a.id==='dragon'?13:5.5;
+      const R0 = F.flyR || (a.id==='dragon'?16:7), h = F.flyH || (a.id==='dragon'?13:5.5);
       a.ang += dt*F.sp/R0; g.position.set(a.home.x+Math.cos(a.ang)*R0, h+Math.sin(a.phase*1.3)*0.6, a.home.z+Math.sin(a.ang)*R0);
       g.rotation.y = -a.ang; a.legs.forEach((w,i)=>w.rotation.z=(i?-1:1)*Math.sin(a.phase*(a.id==='dragon'?4:12))*0.6);
       continue;
@@ -1513,6 +1541,160 @@ function meetAnimal(an){
     [{label:'Organizar mi álbum',cls:'ghost',fn:openAlbumSort},{label:'Seguir',fn:closeModal}], F.n+'. Es un '+F.tipo.toLowerCase()+'. '+F.f);
 }
 
+/* ---------- poderes que se ganan descubriendo ---------- */
+const visitedCount = () => Object.keys(state.visited||{}).length;
+const animalsCount = () => FAUNA_IDS.filter(i=>state.animals[i]).length;
+const elementsCount = () => EL_IDS.filter(s=>state.found[s]).length;
+const molsCount = () => MOL_IDS.filter(m=>state.mols[m]).length;
+const discoveries = () => visitedCount()+animalsCount()+elementsCount()+molsCount()+(state.fusions||[]).length;
+const speedLevel = () => Math.min(5, Math.floor(discoveries()/5));
+const POWERS = [
+  {id:'turbo', n:'Turbo', d:'Mantén presionada la tecla Shift para correr rapidísimo.', prog:()=>[animalsCount(),5], hint:'Conoce 5 animales'},
+  {id:'salto', n:'Súper salto', d:'Saltas mucho más alto en todos los mundos.', prog:()=>[visitedCount(),5], hint:'Visita 5 mundos'},
+  {id:'manos', n:'Manos rápidas', d:'Picas vetas y fuentes el doble de rápido.', prog:()=>[elementsCount(),8], hint:'Descubre 8 elementos'},
+  {id:'iman', n:'Imán de gemas', d:'Las gemas de números se recogen desde más lejos.', prog:()=>[molsCount(),3], hint:'Fabrica 3 moléculas'},
+  {id:'brillo', n:'Estela de científico', d:'Dejas chispas de colores al correr.', prog:()=>[(state.fusions||[]).length,2], hint:'Crea 2 criaturas en el laboratorio de fusión'}
+];
+const hasPower = id => !!(state.powers||{})[id];
+let powerAcc=0;
+function checkPowers(dt){
+  powerAcc+=dt; if(powerAcc<1) return; powerAcc=0;
+  state.powers=state.powers||{};
+  const lv=speedLevel();
+  if(lv>(state.speedLv||0)){ state.speedLv=lv; save(); sfx.level(); toast('¡Velocidad nivel '+lv+'!',['Descubriste muchas cosas: ahora corres más rápido.'],7000); }
+  if(modalOpen || editorOpen) return;
+  for(const pw of POWERS){ if(state.powers[pw.id]) continue; const [a,b]=pw.prog(); if(a>=b){ state.powers[pw.id]=1; save(); sfx.crystal();
+    openModal('¡Nuevo poder: '+pw.n+'!', `<p class="q">${esc(pw.d)}</p><p>Lo ganaste porque: ${esc(pw.hint.toLowerCase())}.</p>`, [{label:'¡Genial!',fn:closeModal}], 'Nuevo poder: '+pw.n+'. '+pw.d); return; } }
+}
+function openPowers(){
+  const lv=speedLevel(), d=discoveries(), next=(lv+1)*5;
+  const bar=(a,b)=>`<span style="display:block;height:12px;border:2px solid var(--ink);border-radius:8px;background:linear-gradient(90deg,var(--leaf) ${Math.min(100,a/b*100)}%,var(--mist) 0)"></span>`;
+  const rows=POWERS.map(pw=>{ const [a,b]=pw.prog(), on=hasPower(pw.id);
+    return `<div class="shop-item ${on?'owned':''}"><div class="si-head"><h3>${esc(pw.n)}</h3></div><p>${esc(pw.d)}</p>${on?'<span class="tag">¡Ya lo tienes!</span>':`<p class="note" style="margin:0">${esc(pw.hint)}: ${Math.min(a,b)} de ${b}</p>${bar(a,b)}`}</div>`; }).join('');
+  openModal('Tus poderes', `<div class="shop-item"><div class="si-head"><h3>Velocidad · nivel ${lv} de 5</h3></div><p>Sube cada 5 descubrimientos: mundos visitados, animales, elementos, moléculas y criaturas de fusión. Llevas <b>${d}</b>.</p>${lv<5?`<p class="note" style="margin:0">Próximo nivel: ${d} de ${next}</p>${bar(d,next)}`:'<span class="tag">¡Velocidad máxima!</span>'}</div><div class="shop-list">${rows}</div>`,
+    [{label:'Cerrar',fn:closeModal}], 'Tus poderes. Velocidad nivel '+lv+'.');
+}
+
+/* ---------- laboratorio de fusión ---------- */
+const FUS_C = {x:16, z:-3};
+const ANIMAL_COL = {loro:'#e63946',tucan:'#1b2445',dragon:'#2bb673',tortuga:'#3f8f4f',camello:'#c9a063',zorro:'#e8c48a',cangrejo:'#e2523a',oso:'#f4f6fa',pinguino:'#1b2445',rover:'#dfe6f2',roverm:'#dfe6f2',alien:'#7be05a',rana:'#3fbf4a',mono:'#7a4f33',caballo:'#8a5a3b',lagarto:'#5fae4a'};
+const FEAT = {loro:['alas','las alas del loro'],tucan:['alas','las alas del tucán'],dragon:['alasd','las alas y los cuernos del dragón'],tortuga:['caparazon','el caparazón de la tortuga'],camello:['joroba','la joroba del camello'],
+  zorro:['orejas','las orejas del zorro'],cangrejo:['pinzas','las pinzas del cangrejo'],oso:['manchas','el pelaje blanco del oso'],pinguino:['panza','la panza blanca del pingüino'],rover:['ruedas','las ruedas del robot'],roverm:['ruedas','las ruedas del robot'],
+  alien:['antenas','las antenas de Glip'],rana:['ojos','los ojos saltones de la rana'],mono:['cola','la cola larga del mono'],caballo:['crin','la crin del caballo'],lagarto:['pinchos','los pinchos del lagarto']};
+const NAUGHTY=/caca|culo|pedo|puta|mierda|pipi|popo|teta|pene|cago/;
+function silabas(word){
+  let w=word.toLowerCase().split(' ')[0];
+  const sub=[['ll','1'],['ch','2'],['rr','3'],['qu','4'],['bl','5'],['br','6'],['cl','7'],['cr','8'],['dr','9'],['fl','!'],['fr','#'],['gl','$'],['gr','%'],['pl','&'],['pr','*'],['tr','+']];
+  sub.forEach(([a,b])=>w=w.split(a).join(b));
+  const V='aeiouáéíóúü';
+  const re=new RegExp(`[^${V}]*[${V}]+(?:[^${V}]*$|[^${V}](?=[^${V}]))?`,'g');
+  const parts=w.match(re)||[w];
+  return parts.map(p=>{ sub.forEach(([a,b])=>p=p.split(b).join(a)); return p; });
+}
+function fusionNames(a,b){
+  const sa=silabas(FAUNA[a].n), sb=silabas(FAUNA[b].n);
+  const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+  const c=[ sa.slice(0,Math.ceil(sa.length/2)).join('')+sb.slice(Math.floor(sb.length/2)).join(''),
+            sa[0]+(sb.length>1?sb.slice(1).join(''):sb[0]),
+            sb.slice(0,Math.ceil(sb.length/2)).join('')+sa.slice(Math.floor(sa.length/2)).join(''),
+            sb[0]+(sa.length>1?sa.slice(1).join(''):sa[0]) ];
+  return [...new Set(c.map(x=>x.replace(/([a-záéíóú])\1\1/g,'$1$1')).filter(x=>x.length>=3 && !NAUGHTY.test(x)))].slice(0,3).map(cap);
+}
+function tintAnimal(g, hex){
+  const cb=new THREE.Color(hex);
+  g.traverse(o=>{ if(o.isMesh && o.material && o.material.color && !Array.isArray(o.material)){ const h=o.material.color.getHex(); if(h===0x1b2445 || h===0xffffff) return; const m=o.material.clone(); m.color.lerp(cb,0.45); o.material=m; } });
+}
+function buildHybrid(f){
+  const r=buildAnimal(f.a); const g=r.g; tintAnimal(g, ANIMAL_COL[f.b]);
+  const box=new THREE.Box3().setFromObject(g), top=Math.max(0.4,box.max.y), fz=box.max.z, bz=box.min.z, hw=Math.max(0.2,box.max.x), col=ANIMAL_COL[f.b], L=c=>M(c);
+  const ft=FEAT[f.b][0]; let wings=null;
+  const midY = top*0.75;
+  if(ft==='alas'||ft==='alasd'){ wings=[]; const s=ft==='alasd'?1.6:1; for(const sx of [-1,1]){ const w=new THREE.Group(); w.position.set(sx*hw*0.8, midY, 0); g.add(w); mesh(new THREE.BoxGeometry(0.9*s,0.05,0.55*s), L(ft==='alasd'?'#1f8a4a':(f.b==='loro'?'#2a6fdb':'#1b2445')), sx*0.45*s,0,0, w); wings.push(w); }
+    if(ft==='alasd') for(const sx of [-1,1]){ const h=mesh(new THREE.ConeGeometry(0.06,0.3,6), L('#f3efe6'), sx*0.12,top+0.12,fz*0.7); } }
+  if(ft==='caparazon'){ const sh=mesh(new THREE.SphereGeometry(Math.max(hw,(fz-bz)/2)*0.95,14,8,0,Math.PI*2,0,Math.PI/2), L('#3f8f4f'), 0,top*0.72,(fz+bz)/2, g); sh.scale.y=0.6; }
+  if(ft==='joroba'){ mesh(new THREE.SphereGeometry(Math.max(0.2,hw*0.8),12,8), L('#b98f55'), 0,top*0.95,(fz+bz)/2, g).scale.y=0.8; }
+  if(ft==='orejas'){ for(const sx of [-1,1]){ const e=mesh(new THREE.ConeGeometry(0.12,0.45,4), L('#e8c48a'), sx*0.14,top+0.12,fz*0.6, g); e.rotation.z=-sx*0.25; } }
+  if(ft==='pinzas'){ for(const sx of [-1,1]){ const c=mesh(new THREE.SphereGeometry(0.15,8,6), L('#e2523a'), sx*(hw+0.12),top*0.45,fz*0.9, g); c.scale.set(1,0.7,1.3); } }
+  if(ft==='manchas'){ for(let k=0;k<6;k++){ mesh(new THREE.SphereGeometry(0.1,8,6), L('#ffffff'), (R()-0.5)*hw*1.6, top*(0.5+R()*0.4), bz+(fz-bz)*R(), g); } }
+  if(ft==='panza'){ const p=mesh(new THREE.SphereGeometry(Math.max(0.18,hw*0.7),12,8), L('#ffffff'), 0,top*0.45,fz*0.75, g); p.scale.set(1,1.2,0.5); }
+  if(ft==='ruedas'){ for(const sx of [-1,1]) for(const sz of [bz*0.7,fz*0.7]){ const w=mesh(new THREE.CylinderGeometry(0.16,0.16,0.1,12), L('#1b2445'), sx*(hw+0.06),0.16,sz, g); w.rotation.z=Math.PI/2; } }
+  if(ft==='antenas'){ for(const sx of [-1,1]){ mesh(new THREE.CylinderGeometry(0.02,0.02,0.4,6), L('#5fae4a'), sx*0.12,top+0.2,fz*0.6, g); mesh(new THREE.SphereGeometry(0.07,8,6), new THREE.MeshBasicMaterial({color:0xff8fd8}), sx*0.12,top+0.42,fz*0.6, g); } }
+  if(ft==='ojos'){ for(const sx of [-1,1]){ mesh(new THREE.SphereGeometry(0.13,10,8), L('#3fbf4a'), sx*0.15,top+0.05,fz*0.75, g); mesh(new THREE.SphereGeometry(0.06,8,6), L('#1b2445'), sx*0.15,top+0.1,fz*0.75+0.1, g); } }
+  if(ft==='cola'){ const t=mesh(new THREE.CylinderGeometry(0.04,0.05,1.0,6), L('#7a4f33'), 0,top*0.6,bz-0.35, g); t.rotation.x=-0.9; const t2=mesh(new THREE.TorusGeometry(0.15,0.04,6,12,Math.PI*1.4), L('#7a4f33'), 0,top*0.6+0.35,bz-0.7, g); t2.rotation.y=Math.PI/2; }
+  if(ft==='crin'){ mesh(new THREE.BoxGeometry(0.1,0.25,Math.max(0.3,(fz-bz)*0.5)), L('#2b1a10'), 0,top+0.05,fz*0.4, g); }
+  if(ft==='pinchos'){ for(let k=0;k<5;k++){ mesh(new THREE.ConeGeometry(0.07,0.2,4), L('#3f8f3f'), 0,top+0.05,bz+(fz-bz)*(k+0.5)/5, g); } }
+  return {g, legs:r.legs||[], wings, wheels:r.wheels, neck:r.neck};
+}
+const fusionMove = f => { const ma=FAUNA[f.a].move, mb=FAUNA[f.b].move; if(ma==='fly'||mb==='fly') return 'fly'; if(ma==='hop'||mb==='hop') return 'hop'; if(ma==='side'||mb==='side') return 'side'; return 'walk'; };
+const MOVE_TXT = {fly:'Puede volar', hop:'Se mueve saltando', side:'Camina de lado', walk:'Camina', waddle:'Camina balanceándose'};
+let fusChamber=null, fusGlow=0;
+function buildFusionLab(){
+  const x=FUS_C.x, z=FUS_C.z; const g=new THREE.Group(); g.position.set(x,0,z); g.rotation.y=Math.atan2(-x,-z); scene.add(g);
+  mesh(new THREE.CylinderGeometry(2.6,2.8,0.25,28), M(0xdfe6f2), 0,0.12,0, g);
+  for(const sx of [-1.6,1.6]){ mesh(new THREE.CylinderGeometry(0.55,0.6,0.3,16), M(0x8a8f9c), sx,0.4,-0.4, g);
+    mesh(new THREE.CylinderGeometry(0.5,0.5,1.6,16,1,true), new THREE.MeshLambertMaterial({color:0x9ff0ff, transparent:true, opacity:0.35, side:THREE.DoubleSide}), sx,1.35,-0.4, g);
+    mesh(new THREE.TorusGeometry(0.52,0.06,8,24), new THREE.MeshBasicMaterial({color:sx<0?0xff8fd8:0x7fe7ff}), sx,2.15,-0.4, g).rotation.x=Math.PI/2; }
+  mesh(new THREE.CylinderGeometry(0.06,0.06,3.2,8), M(0xc7cdda), 0,2.5,-0.4, g).rotation.z=Math.PI/2;
+  fusChamber=mesh(new THREE.SphereGeometry(0.75,20,14), new THREE.MeshLambertMaterial({color:0xffffff, emissive:0x8a5cf6, emissiveIntensity:0.3, transparent:true, opacity:0.55}), 0,1.3,-0.4, g);
+  mesh(new THREE.CylinderGeometry(0.8,0.9,0.5,20), M(0x8a8f9c), 0,0.4,-0.4, g);
+  animated.push(t=>{ fusGlow=Math.max(0,fusGlow-0.02); fusChamber.material.emissiveIntensity=0.3+Math.sin(t*0.004)*0.15+fusGlow*2; fusChamber.scale.setScalar(1+fusGlow*0.4); });
+  const doc=buildAvatar({skin:2, face:'gafas', head:'cubo', hat:'pelo', hair:5, shirt:7, design:'liso', pants:6, shoes:6, back:'nada', acc:7});
+  doc.position.set(2.1,0.25,0.9); doc.rotation.y=-0.5; g.add(doc);
+  animated.push(t=>{ const pp=doc.userData.parts; pp.armR.rotation.x=-2.4+Math.sin(t*0.005)*0.4; pp.armR.rotation.z=0.25; pp.head.rotation.y=Math.sin(t*0.0017)*0.4; });
+  const lb=makeLabel('FUSIÓN',{bg:'#8a5cf6',fg:'#ffffff',w:3}); lb.position.set(x,4.2,z); scene.add(lb);
+  const lb2=makeLabel('DRA. CHISPA',{bg:'#ffffff',w:2.6,font:56}); doc.add(lb2); lb2.position.set(0,3.5,0);
+  obstacles.push({x,z,r:2.5});
+  interactables.push({x,z,r:4.4, label:()=>'Hablar con la Dra. Chispa (fusión)', action:openFusion});
+}
+let fusSel=[];
+function openFusion(step){
+  const seen=FAUNA_IDS.filter(i=>state.animals[i]);
+  if(seen.length<2){ openModal('Laboratorio de fusión',`<p class="q">¡Hola! Soy la <b>Dra. Chispa</b>, científica genial. Aquí fusionamos criaturas.</p><p>Primero conoce por lo menos 2 animales en los mundos. Llevas ${seen.length}.</p>`,[{label:'¡Voy!',fn:closeModal}],'Hola. Soy la doctora Chispa. Primero conoce por lo menos dos animales.'); return; }
+  if(!step) fusSel=[];
+  if(step==='names' && fusSel.length===2){
+    const [a,b]=fusSel, sa=silabas(FAUNA[a].n), sb=silabas(FAUNA[b].n), names=fusionNames(a,b);
+    openModal('¿Cómo se llamará?', `<p class="q" style="margin:0">Separamos los nombres en sílabas y las mezclamos:</p>
+      <p class="sum" style="font-size:1.6rem">${sa.map(esc).join(' · ').toUpperCase()} &nbsp;+&nbsp; ${sb.map(esc).join(' · ').toUpperCase()}</p>
+      <p>Lee las opciones y elige el nombre de tu criatura:</p><div class="opts">${names.map(n=>`<button class="opt txt" style="width:auto;min-width:140px;font-size:1.4rem" type="button" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>`,
+      [{label:'Volver',cls:'ghost',fn:()=>openFusion()}], 'Elige el nombre: '+names.join(', '));
+    document.querySelectorAll('#mBody [data-n]').forEach(b2=>b2.onclick=()=>doFusion(a,b,b2.dataset.n));
+    return;
+  }
+  const cards=seen.map(i=>`<button type="button" class="opt txt" style="width:auto;min-width:0;font-size:1.05rem;padding:8px 12px;${fusSel.includes(i)?'background:var(--sun)':''}" data-f="${i}">${esc(FAUNA[i].n)}</button>`).join('');
+  const mine=(state.fusions||[]);
+  openModal('Laboratorio de fusión', `<p class="q" style="margin:0">¡Soy la <b>Dra. Chispa</b>! Elige <b>dos</b> criaturas que ya conoces y las fusiono en una nueva.</p>
+    <div class="opts">${cards}</div><p>Elegidas: <b>${fusSel.map(i=>esc(FAUNA[i].n)).join(' + ')||'ninguna'}</b></p>
+    ${mine.length?`<p class="note">Tus criaturas de fusión (${mine.length} de 12): ${mine.map(f=>esc(f.name)).join(', ')}</p>`:''}
+    <p class="note">En la vida real los animales no se pueden fusionar. Estas criaturas son inventadas, solo existen en el juego.</p>`,
+    [{label:'Salir',cls:'ghost',fn:closeModal},{label:'Siguiente: el nombre',id:'fusNext',disabled:fusSel.length!==2,fn:()=>openFusion('names')}], 'Soy la doctora Chispa. Elige dos criaturas que ya conoces.');
+  document.querySelectorAll('#mBody [data-f]').forEach(b=>b.onclick=()=>{ const i=b.dataset.f; if(fusSel.includes(i)) fusSel=fusSel.filter(x=>x!==i); else { if(fusSel.length>=2) fusSel.shift(); fusSel.push(i); } sfx.tink(); openFusion('pick'); });
+}
+function doFusion(a,b,name){
+  state.fusions=state.fusions||[]; if(state.fusions.length>=12) state.fusions.shift();
+  const f={a,b,name}; state.fusions.push(f); save(); closeModalSilently();
+  fusGlow=1; sfx.level(); burst(FUS_C.x,1.6,FUS_C.z,0x8a5cf6,30); burst(FUS_C.x,1.6,FUS_C.z,0xff8fd8,20);
+  setTimeout(()=>{ spawnHybrid(f, state.fusions.length-1, true); showFusionFicha(f, true); }, 900);
+}
+function showFusionFicha(f, isNew){
+  const mv=fusionMove(f), idx=state.fusions.indexOf(f);
+  openModal((isNew?'¡Nació ':'')+f.name+(isNew?'!':''), `<p class="q" style="margin:0">Mitad ${esc(FAUNA[f.a].n.toLowerCase())}, mitad ${esc(FAUNA[f.b].n.toLowerCase())}.</p>
+    <dl class="fdl"><dt>Tiene</dt><dd>${esc(FEAT[f.b][1])}</dd><dt>Se mueve</dt><dd>${esc(MOVE_TXT[mv])}</dd><dt>Es un</dt><dd>ser imaginario</dd></dl>
+    <p class="note">Las criaturas de fusión no existen de verdad: las inventaste tú en el laboratorio del juego.</p>`,
+    [{label:'Que me siga',cls:'ghost',fn:()=>{ state.avatar.pet='fus:'+idx; save(); rebuildPet(); closeModal(); toast(f.name+' te sigue',['Cámbialo en Personaje → Extras.'],5000); }},{label:'Seguir',fn:closeModal}],
+    (isNew?'Nació '+f.name+'. ':'')+'Mitad '+FAUNA[f.a].n+', mitad '+FAUNA[f.b].n+'.');
+}
+function spawnHybrid(f, idx, fresh){
+  const r=buildHybrid(f); const mv=fusionMove(f);
+  const ang=R()*Math.PI*2, hx=FUS_C.x+Math.cos(ang)*(5+R()*4), hz=FUS_C.z+Math.sin(ang)*(5+R()*4);
+  r.g.scale.setScalar(1.3); r.g.position.set(fresh?FUS_C.x:hx, mv==='fly'?3.8:0, fresh?FUS_C.z:hz); scene.add(r.g); setShadow(r.g);
+  const F={n:f.name, tipo:'Fusión', move:mv, sp:1.3, flyR:5, flyH:3.8, fusion:f};
+  const an={id:'fus'+idx, F, g:r.g, legs: mv==='fly' && r.wings ? r.wings : (r.legs||[]), wheels:r.wheels, neck:r.neck, home:{x:hx,z:hz}, tx:hx, tz:hz, wait:0.5, phase:R()*10, ang:ang, hop:0};
+  if(mv==='fly' && !r.wings) an.legs=[];
+  animals.push(an);
+  interactables.push({get x(){return an.g.position.x;}, get z(){return an.g.position.z;}, r:3.2, label:()=>'Ver a '+f.name, action:()=>showFusionFicha(f,false)});
+}
+function spawnFusions(){ (state.fusions||[]).forEach((f,i)=>spawnHybrid(f,i,false)); }
+
 /* ---------- bloques del jugador ---------- */
 const BLOCK_COLORS = [
   {name:'ROJO',hex:0xe63946,css:'#e63946'},{name:'AZUL',hex:0x2a6fdb,css:'#2a6fdb'},{name:'AMARILLO',hex:0xffc93c,css:'#ffc93c'},
@@ -1556,7 +1738,7 @@ const bkey=(x,y,z)=>x+','+y+','+z;
 function recomputeCol(x,z){ let top=0; for(let y=0;y<30;y++) if(blocks.has(bkey(x,y,z))) top=y+1; if(top) cols.set(x+','+z,top); else cols.delete(x+','+z); }
 function addBlock(x,y,z,c,persist=true){
   const k=bkey(x,y,z); if(blocks.has(k)) return false;
-  const m=new THREE.Mesh(boxGeo, blockMat(c)); m.position.set(x,y+0.5,z); m.userData={k,x,y,z}; scene.add(m);
+  const m=new THREE.Mesh(boxGeo, blockMat(c)); if(GFX_HIGH){ m.castShadow=true; m.receiveShadow=true; } m.position.set(x,y+0.5,z); m.userData={k,x,y,z}; scene.add(m);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo), new THREE.LineBasicMaterial({color:0x1b2445, transparent:true, opacity:0.35})); m.add(edges);
   blocks.set(k,{mesh:m,c}); blockMeshes.push(m); recomputeCol(x,z);
   if(persist) persistBlocks();
@@ -1698,7 +1880,7 @@ function updatePuffs(dt){ for(let i=puffs.length-1;i>=0;i--){ const q=puffs[i]; 
 let avatar=null, nameTag=null;
 function rebuildAvatar(){
   if(avatar) avatarHolder.remove(avatar);
-  avatar=buildAvatar(state.avatar); avatarHolder.add(avatar);
+  avatar=buildAvatar(state.avatar); avatarHolder.add(avatar); setShadow(avatar);
   const pk=new THREE.Group(); pk.position.set(0,-0.95,0.1); avatar.userData.parts.armR.add(pk);
   mesh(new THREE.CylinderGeometry(0.05,0.05,1.1,6), M(0x8a5a3b), 0,0,0.25, pk).rotation.x=Math.PI/2;
   const hd=mesh(new THREE.BoxGeometry(0.85,0.14,0.14), new THREE.MeshLambertMaterial({color:PICKS[state.pick].hex, emissive:state.pick>=4?0x1f8fa8:0x000000}), 0,0,0.75, pk);
@@ -1708,6 +1890,7 @@ function rebuildAvatar(){
   if(!nameTag){ nameTag=makeLabel(state.name||'Yo',{bg:'#ffffff',w:2.2,font:70}); avatarHolder.add(nameTag); }
   nameTag.position.y=avatar.userData.headTop+0.45; nameTag.visible=!!state.name;
 }
+let curSpeed=5.4, turboOn=false, leanCur=0, dustAcc=0;
 let facing=0, targetFacing=0, walkPhase=0, walkAmp=0, moving=false, airborne=false, flameT=0, gliding=false, jumpReq=false, rocketReq=false, airJumps=0, flipT=0, flipFwd=0;
 const FLIP_DUR=0.75;
 function animateAvatar(dt, t){
@@ -1715,8 +1898,9 @@ function animateAvatar(dt, t){
   let d=targetFacing-facing; d=Math.atan2(Math.sin(d),Math.cos(d)); facing+=d*Math.min(1,dt*12);
   avatarHolder.rotation.y = facing + (editorOpen?edSpin:0);
   const p=avatar.userData.parts;
-  walkAmp += ((moving&&!airborne?0.75:0)-walkAmp)*Math.min(1,dt*10);
-  if(moving) walkPhase+=dt*9;
+  const runK = Math.min(1.25, curSpeed/7);
+  walkAmp += ((moving&&!airborne?0.6+0.45*runK:0)-walkAmp)*Math.min(1,dt*10);
+  if(moving) walkPhase+=dt*curSpeed*1.75;
   const sw=Math.sin(walkPhase)*walkAmp;
   if(flipT>0){
     flipT+=dt; const u=Math.min(1,flipT/FLIP_DUR), e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2, th=e*Math.PI*2;
@@ -1725,7 +1909,10 @@ function animateAvatar(dt, t){
     if(u>=1){ flipT=0; avatar.rotation.x=0; avatar.position.set(0,0,0); }
   }
   else if(airborne && !editorOpen){ p.armL.rotation.x=p.armR.rotation.x=-2.5; p.legL.rotation.x=0.35; p.legR.rotation.x=-0.35; }
-  else { p.legL.rotation.x=sw; p.legR.rotation.x=-sw; p.armL.rotation.x=-sw; p.armR.rotation.x=sw; }
+  else { p.legL.rotation.x=sw; p.legR.rotation.x=-sw; p.armL.rotation.x=-sw*1.15; p.armR.rotation.x=sw*1.15; }
+  if(flipT===0){ leanCur += (((moving&&!airborne)?0.06+0.1*runK+(turboOn?0.08:0):0)-leanCur)*Math.min(1,dt*8); avatar.rotation.x=leanCur; avatar.position.y = (moving&&!airborne) ? Math.abs(Math.sin(walkPhase))*0.13*walkAmp : 0;
+    if(moving && !airborne && mode==='play' && !editorOpen){ dustAcc+=dt; if(dustAcc>(turboOn?0.05:0.11)){ dustAcc=0; burst(P.x+(R()-0.5)*0.4, P.y+0.08, P.z+(R()-0.5)*0.4, turboOn?0xffffff:new THREE.Color(T.path).getHex(), 1); const q=parts3[parts3.length-1]; q.vx*=0.25; q.vz*=0.25; q.vy=0.8; q.life=0.45; } }
+    if(hasPower('brillo') && moving && mode==='play' && !editorOpen && R()<0.4){ burst(P.x+(R()-0.5)*0.8, P.y+0.5+R()*1.5, P.z+(R()-0.5)*0.8, [0xff8fd8,0x7fe7ff,0xffc93c][Math.floor(R()*3)], 1); const q=parts3[parts3.length-1]; q.vx*=0.1; q.vz*=0.1; q.vy=0.5; q.life=0.5; } }
   p.armL.rotation.z=0; p.armR.rotation.z=0;
   if(editorOpen){ p.armR.rotation.x=-2.6+Math.sin(t*0.006)*0.35; p.armR.rotation.z=0.3; }
   if(p.pick){ p.pick.visible = !editorOpen && mode==='play' && pickShowT>0 && flipT===0;
@@ -1739,12 +1926,12 @@ function animateAvatar(dt, t){
 }
 
 /* cámara en tercera persona */
-let camDist=6.5, camNow=6.5;
+let camDist=8, camNow=8;
 const occRay=new THREE.Raycaster();
 const _t=new THREE.Vector3(), _d=new THREE.Vector3();
 function updateCamera(){
   const sh = buildMode ? 1.1 : 0;
-  _t.set(P.x+Math.cos(P.yaw)*sh, P.y+(buildMode?2.5:2.1), P.z-Math.sin(P.yaw)*sh);
+  _t.set(P.x+Math.cos(P.yaw)*sh, P.y+(buildMode?2.5:1.55), P.z-Math.sin(P.yaw)*sh);
   const cp=Math.cos(P.pitch); _d.set(-Math.sin(P.yaw)*cp, Math.sin(P.pitch), -Math.cos(P.yaw)*cp);
   let d=buildMode?Math.min(camDist,4.8):camDist;
   if(blockMeshes.length){ occRay.set(_t, _d.clone().negate()); occRay.far=d; const h=occRay.intersectObjects(blockMeshes,false); if(h.length) d=Math.max(1.3,h[0].distance-0.3); }
@@ -1778,7 +1965,7 @@ function renderEditor(){
   if(edTab==='cabeza') h=choices('head',HEADS,'Forma de la cabeza')+choices('hat',HATS,'Encima de la cabeza')+swatches('acc',CLOTH,'Color de gorra, capa y alas');
   if(edTab==='ropa') h=swatches('shirt',CLOTH,'Camisa')+choices('design',DESIGNS,'Dibujo de la camisa')+swatches('pants',CLOTH,'Pantalón');
   if(edTab==='espalda') h=choices('back',BACKS,'En la espalda')+swatches('acc',CLOTH,'Color');
-  if(edTab==='extras') h=choices('pet',PETS,'Mascota')+choices('aura',AURAS,'Brillo al correr')+`<p class="note">Las mascotas y el brillo se cambian por cristales con el Joyero de la plaza.</p>`;
+  if(edTab==='extras') h=choices('pet',[...PETS, ...(state.fusions||[]).map((f,i)=>({id:'fus:'+i, n:f.name, d:'Criatura de fusión'}))],'Mascota')+choices('aura',AURAS,'Brillo al correr')+`<p class="note">Las mascotas y el brillo se cambian por cristales con el Joyero de la plaza.</p>`;
   $('#edBody').innerHTML=h;
   document.querySelectorAll('.ed-tab').forEach(b=>b.classList.toggle('sel', b.dataset.t===edTab));
   document.querySelectorAll('#edBody [data-k]').forEach(b=>b.onclick=()=>{
@@ -1808,7 +1995,7 @@ $('#edRand').onclick=randomAvatar; $('#edDone').onclick=closeEditor;
 $('#edL').onclick=()=>edSpin+=0.6; $('#edR').onclick=()=>edSpin-=0.6;
 
 /* ---------- jugador y controles ---------- */
-const P = {x:0,y:0,z:13,vx:0,vz:0,vy:0,yaw:0,pitch:-0.32};
+const P = {x:0,y:0,z:13,vx:0,vz:0,vy:0,yaw:0,pitch:-0.26};
 const keys = new Set();
 let mode = 'start', modalOpen = false, buildMode = false, selColor = 0, locked = false;
 let surfBounce=0;
@@ -1819,7 +2006,7 @@ function surfaceAt(px,pz,py){
   return h;
 }
 function canMove(nx,nz){
-  if(Math.hypot(nx,nz)>56.5) return false;
+  if(Math.hypot(nx,nz)>88.5) return false;
   for(const o of obstacles){ const d=Math.hypot(nx-o.x,nz-o.z); if(d<o.r+0.45 && d<=Math.hypot(P.x-o.x,P.z-o.z)){ if(o.top!==undefined && (P.y>=o.top-0.55 || P.y+1.7<=(o.bot||0))) continue; return false; } }
   for(const b of boxes){ if(Math.abs(nx-b.x)<b.hw+0.35 && Math.abs(nz-b.z)<b.hd+0.35 && !(Math.abs(P.x-b.x)<b.hw+0.35 && Math.abs(P.z-b.z)<b.hd+0.35)){ if(P.y>=b.top-0.55 || P.y+1.7<=(b.bot||0)) continue; return false; } }
   if(topAt(nx,nz) > P.y+0.55) return false;
@@ -1868,6 +2055,7 @@ addEventListener('keydown', e=>{
   if(e.code==='KeyF') rocketReq=true;
   if(e.code==='Tab'){ e.preventDefault(); if(!buildMode) setBuild(true); else { hbGroup=(hbGroup+1)%hbGroups().length; selColor=availColors()[0]; selTool='color'; carrying=false; renderHotbar(); } return; }
   if(e.code==='KeyI'){ openBag(); return; }
+  if(e.code==='KeyP'){ openPowers(); return; }
   if(e.code==='KeyM'){ selTool='move'; carrying=false; if(!buildMode) setBuild(true); renderHotbar(); }
   if(e.code==='KeyX' || e.code==='Digit0'){ selTool='erase'; carrying=false; if(!buildMode) setBuild(true); renderHotbar(); }
   const n = parseInt(e.key,10), av=availColors(); if(n>=1 && n<=av.length){ selColor=av[n-1]; selTool='color'; carrying=false; renderHotbar(); if(!buildMode) setBuild(true); }
@@ -1911,7 +2099,7 @@ function computeAim(){
 }
 function canPlace(x,y,z){
   if(y<0 || y>12 || blocks.has(bkey(x,y,z))) return false;
-  if(Math.hypot(x,z)>55.5 || Math.hypot(x,z)<3) return false;
+  if(Math.hypot(x,z)>87.5 || Math.hypot(x,z)<3) return false;
   if(Math.abs(x-P.x)<0.95 && Math.abs(z-P.z)<0.95 && y < P.y+2.8 && y+1 > P.y) return false;
   if(Math.hypot(x-P.x,z-P.z)>7) return false;
   for(const o of obstacles) if(Math.hypot(x-o.x,z-o.z)<o.r+0.4) return false;
@@ -2385,6 +2573,9 @@ function openHelp(){
   <li>Presiona <kbd>B</kbd> para construir con bloques en toda la isla.</li>
   <li>Presiona <kbd>C</kbd> para cambiar tu personaje.</li>
   <li>Con la mochila cohete, presiona <kbd>F</kbd> para dar una voltereta en el aire.</li>
+  <li>Descubre mundos, animales, elementos y moléculas para correr más rápido y ganar poderes (tecla P).</li>
+  <li>La Dra. Chispa, junto al laboratorio, fusiona dos animales en una criatura nueva.</li>
+  <li>En las afueras de cada mundo hay mesetas con cofres y vetas escondidas.</li>
   <li>El puerto espacial tiene portales a la Luna y a los planetas. En cada uno la gravedad es distinta: en Júpiter usa el propulsor (F).</li>
   <li>En cada mundo hay animales y seres. Acércate y presiona E para conocerlos.</li>
   <li>Los portales de colores de la plaza te llevan a otros mundos: camina hacia el remolino.</li>
@@ -2422,6 +2613,7 @@ function openParent(){
     <label for="sBrk">Pausa de movimiento cada</label><select id="sBrk">${opt([10,15,20,30,0],state.settings.breakEvery,v=>v?v+' min':'Nunca')}</select>
     <label for="sSnd">Sonidos</label><select id="sSnd">${opt([1,0],state.settings.sound?1:0,v=>v?'Suaves':'Apagados')}</select>
     <label for="sVoz">Voz que lee las instrucciones</label><select id="sVoz">${(loadVoices(),voiceList).length?voiceList.map((v,i)=>`<option value="${esc(v.name)}" ${(state.settings.voice?state.settings.voice===v.name:i===0)?'selected':''}>${esc(v.name)}${i===0?' (recomendada)':''}</option>`).join(''):'<option value="">Este equipo no tiene voces en español</option>'}</select>
+    <label for="sGfx">Gráficos (se aplica al recargar)</label><select id="sGfx">${['alto','rapido'].map(v=>`<option value="${v}" ${(state.settings.gfx||'alto')===v?'selected':''}>${v==='alto'?'Altos, con sombras':'Rápidos, para equipos lentos'}</option>`).join('')}</select>
     <label for="sVel">Velocidad de la voz</label><select id="sVel">${opt([0.85,0.95,1.05],state.settings.voiceRate||0.95,v=>v===0.85?'Despacio':(v===0.95?'Normal':'Rápida'))}</select></div>
     <div class="row"><button class="btn small ghost" type="button" id="vozTest">Probar voz</button><span class="note">Para voces más naturales, usa Edge (voces "Online (Natural)") o Chrome (voces de Google).</span></div>
     <h3 style="margin:6px 0 0;font-family:var(--display)">Premios reales</h3>
@@ -2443,13 +2635,14 @@ function readPrizes(){ if(!$('#pzn0')) return; const out=[]; for(let i=0;i<4;i++
 function applyParent(){
   const l=$('#sLim'), b=$('#sBrk'), s=$('#sSnd');
   readPrizes();
-  if(l){ state.settings.limit=+l.value; state.settings.breakEvery=+b.value; state.settings.sound=s.value==='1'; const vz=$('#sVoz'), vl=$('#sVel'); if(vz && vz.value) state.settings.voice=vz.value; if(vl) state.settings.voiceRate=+vl.value; }
+  if(l){ state.settings.limit=+l.value; state.settings.breakEvery=+b.value; state.settings.sound=s.value==='1'; const vz=$('#sVoz'), vl=$('#sVel'), gf=$('#sGfx'); if(gf) state.settings.gfx=gf.value; if(vz && vz.value) state.settings.voice=vz.value; if(vl) state.settings.voiceRate=+vl.value; }
   save(); renderSoundBtn();
   if(limitReached()) openLimit(); else closeModal();
 }
 function renderSoundBtn(){ $('#btnSound').textContent = state.settings.sound ? 'Sonido: sí' : 'Sonido: no'; }
 $('#btnSound').onclick=()=>{ state.settings.sound=!state.settings.sound; save(); renderSoundBtn(); };
 $('#btnHelp').onclick=openHelp;
+$('#btnPow').onclick=openPowers;
 $('#btnBag').onclick=openBag; $('#bagIc').innerHTML=gemSVG('#7fe7ff',20); $('#coinIc').innerHTML=coinSVG(20);
 $('#btnAvatar').onclick=()=>openEditor();
 $('#btnParent').onclick=openParentGate;
@@ -2483,7 +2676,8 @@ function update(dt){
   if(keys.has('KeyD')) s+=1;
   if(keys.has('KeyA')) s-=1;
   moving=false;
-  const sp=(keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.5:4.8;
+  const turbo=(keys.has('ShiftLeft')||keys.has('ShiftRight')) && hasPower('turbo');
+  const sp=(5.4+0.55*speedLevel())*(turbo?1.45:1); curSpeed = sp; turboOn = turbo;
   let wantX=0, wantZ=0;
   if(f||s){
     const len=Math.hypot(f,s); f/=len; s/=len;
@@ -2502,7 +2696,7 @@ function update(dt){
   const rocket = state.avatar.back==='cohete' || !!T.space;
   const boost = ()=>{ P.vy=Math.max(T.jump*1.25, Math.sqrt(2*T.g*3.2)); airJumps=1; flameT=0.9; flipT=0.0001; flipFwd=4.5; sfx.rocket(); };
   if(jumpReq){ jumpReq=false;
-    if(onGround){ P.vy=T.jump; }
+    if(onGround){ P.vy=T.jump*(hasPower('salto')?1.3:1); }
     else if(rocket && airJumps<1) boost(); }
   if(rocketReq){ rocketReq=false;
     if(!rocket){ if(!state.seenIntro.noRocket){ state.seenIntro.noRocket=1; toast('Necesitas la mochila cohete',[state.level>=2?'Presiona C y elígela en la pestaña Espalda.':'Se gana al llegar al nivel 2.'],7000); } }
@@ -2514,13 +2708,13 @@ function update(dt){
   if(P.y<=ground){ if(surfBounce && P.vy<-2){ P.y=ground; P.vy=surfBounce; sfx.place(); if(!state.seenIntro.bounce){ state.seenIntro.bounce=1; toast('¡Hongo saltarín!',['Salta sobre los hongos para llegar más alto.'],6000); } } else { P.y=ground; P.vy=0; } }
   airborne = P.y>ground+0.05;
   // gemas
-  if(!state.done.numeros) for(const g of gems){ if(!g.taken && Math.hypot(g.obj.position.x-P.x, g.obj.position.z-P.z)<1.25 && P.y<2){ g.taken=true; g.obj.visible=false; bag.push(g.v); updateBag(); sfx.collect();
+  if(!state.done.numeros) for(const g of gems){ if(!g.taken && Math.hypot(g.obj.position.x-P.x, g.obj.position.z-P.z)<(hasPower('iman')?3.2:1.25) && P.y<2){ g.taken=true; g.obj.visible=false; bag.push(g.v); updateBag(); sfx.collect();
     if(gems.every(q=>q.taken) && bag.reduce((a,b)=>a+b,0)!==numTarget) toast('Ya recogiste todas las gemas',['La suma no da la meta.','Presiona R o el botón rojo de arriba para soltarlas y probar otra combinación.'],8000); } }
   // intro de zona
   for(const id of ZONE_IDS){ const Z=ZONES[id]; const k=id+':'+state.level+':'+state.world;
     if(!state.done[id] && !state.seenIntro[k] && Math.hypot(P.x-Z.x,P.z-Z.z)<15){ state.seenIntro[k]=1; save(); toast(...zoneIntro[id]); } }
   // objetivo cercano
-  nearest=findNearest(); updateMines(dt); checkPortals(dt);
+  nearest=findNearest(); updateMines(dt); checkPortals(dt); checkPowers(dt);
   if(!state.seenIntro['lab:'+state.world] && Math.hypot(P.x-LAB_C.x,P.z-LAB_C.z)<10){ state.seenIntro['lab:'+state.world]=1; save();
     toast('Laboratorio',['Busca rocas con letras y géiseres de colores: son elementos.','Pícalos o captúralos con E.','En el laboratorio fabricas moléculas con sus átomos.']); }
   const pr=$('#prompt');
@@ -2533,6 +2727,7 @@ function loop(t){
   if(mode==='play'){
     if(!modalOpen && !editorOpen) update(dt); else { moving=false; }
     animateAvatar(dt, t); updateExperiment(dt);
+    if(GFX_HIGH){ sun.position.set(P.x+30,P.y+60,P.z+25); sun.target.position.set(P.x,P.y,P.z); sun.target.updateMatrixWorld(); }
     if(editorOpen) editorCamera(); else updateCamera();
     if(buildMode && !modalOpen && !editorOpen){ aim=computeAim(); ghost.visible=false;
       const targetMode = selTool==='erase' || (selTool==='move' && !carrying);
@@ -2602,6 +2797,7 @@ function boot(){
   buildWorld();
   (state.blocks||[]).forEach(([x,y,z,c])=>addBlock(x,y,z,Math.min(c,BLOCK_COLORS.length-1),false));
   setupLevel(); refreshCrystals(); rebuildAvatar(); targetFacing=facing=Math.PI;
+  setShadow(scene); state.visited[state.world]=1; save();
   camera.position.set(0,15,34); camera.lookAt(0,3,0);
   requestAnimationFrame(loop);
   let auto=false; try{ auto=sessionStorage.getItem('islaAuto')==='1'; sessionStorage.removeItem('islaAuto'); }catch(e){}
